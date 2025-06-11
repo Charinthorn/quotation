@@ -1,0 +1,1841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuoteVend - Easy Quotation Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .app-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .sidebar {
+            background: linear-gradient(180deg, #2c3e50, #1a2533);
+            border-radius: 16px 0 0 16px;
+        }
+        .nav-item {
+            transition: all 0.2s ease;
+            border-left: 4px solid transparent;
+        }
+        .nav-item:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        .nav-item.active {
+            background-color: rgba(255,255,255,0.15);
+            border-left: 4px solid #3498db;
+        }
+        .content-area {
+            height: calc(100vh - 2rem);
+            overflow-y: auto;
+        }
+        .category-card {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .category-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+            border-color: #3498db;
+        }
+        .product-card {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .product-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        }
+        .product-card.selected {
+            border-color: #2ecc71;
+            background-color: rgba(46, 204, 113, 0.05);
+        }
+        .cart-item {
+            transition: all 0.2s ease;
+        }
+        .cart-item:hover {
+            background-color: rgba(0,0,0,0.02);
+        }
+        .quantity-control {
+            display: flex;
+            align-items: center;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+        .quantity-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f7fafc;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .quantity-btn:hover {
+            background: #edf2f7;
+        }
+        .quantity-input {
+            width: 40px;
+            text-align: center;
+            border: none;
+            font-weight: 500;
+        }
+        .quantity-input:focus {
+            outline: none;
+        }
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            color: #64748b;
+        }
+        .breadcrumb-item {
+            cursor: pointer;
+        }
+        .breadcrumb-item:hover {
+            color: #3498db;
+            text-decoration: underline;
+        }
+        .breadcrumb-separator {
+            margin: 0 8px;
+        }
+        .search-bar {
+            transition: all 0.3s ease;
+        }
+        .search-bar:focus {
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+        .badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background-color: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .tab {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .tab.active {
+            color: #3498db;
+            border-bottom: 3px solid #3498db;
+        }
+        .tab:hover:not(.active) {
+            color: #2980b9;
+            border-bottom: 3px solid #e2e8f0;
+        }
+        .quotation {
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px;
+        }
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+        .step-indicator::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e2e8f0;
+            z-index: 1;
+        }
+        .step {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .step-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #cbd5e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+        .step.active .step-circle {
+            background: #3498db;
+            border-color: #3498db;
+            color: white;
+        }
+        .step.completed .step-circle {
+            background: #2ecc71;
+            border-color: #2ecc71;
+            color: white;
+        }
+        .step-label {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .step.active .step-label {
+            color: #3498db;
+            font-weight: 600;
+        }
+        .step.completed .step-label {
+            color: #2ecc71;
+            font-weight: 600;
+        }
+        @media print {
+            @page {
+                size: A4;
+                margin: 20mm;
+            }
+
+            body {
+                background: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .quotation {
+                max-width: 800px;
+                margin: auto;
+                padding: 32px;
+                background: white;
+            }
+
+
+            /* ซ่อน UI ไม่เกี่ยวข้องเวลาพิมพ์ */
+            .sidebar, .step-indicator, .breadcrumb, .nav-item,
+            #edit-quote, #back-to-cart, #print-quote, #generate-quote-btn {
+                display: none !important;
+            }
+
+            .content-area {
+                padding: 0 !important;
+            }
+            }
+
+    </style>
+</head>
+<body>
+    <div class="min-h-screen bg-gray-100 p-4">
+        <div class="app-container w-full max-w-7xl mx-auto flex flex-col md:flex-row overflow-hidden">
+            <!-- Sidebar Navigation -->
+            <div class="sidebar w-full md:w-64 bg-gray-800 text-white p-4 md:p-6">
+                <div class="flex items-center justify-between md:justify-start mb-8">
+                    <h1 class="text-2xl font-bold">QuoteVend</h1>
+                    <button id="mobile-menu-toggle" class="md:hidden">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <div id="nav-items" class="hidden md:block">
+                    <div class="mb-6">
+                        <div class="text-sm text-gray-400 mb-2">NAVIGATION</div>
+                        <div id="nav-categories" class="nav-item active flex items-center p-3 rounded cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                            </svg>
+                            <span>Categories</span>
+                        </div>
+                        <div id="nav-products" class="nav-item flex items-center p-3 rounded cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                            </svg>
+                            <span>Products</span>
+                        </div>
+                        <div id="nav-cart" class="nav-item flex items-center p-3 rounded cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <span>Cart</span>
+                            <div id="cart-badge" class="ml-2 bg-blue-500 text-xs rounded-full w-5 h-5 flex items-center justify-center">0</div>
+                        </div>
+                        <div id="nav-customer" class="nav-item flex items-center p-3 rounded cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span>Customer</span>
+                        </div>
+                        <div id="nav-quotation" class="nav-item flex items-center p-3 rounded cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span>Quotation</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <div class="text-sm text-gray-400 mb-2">SUMMARY</div>
+                        <div class="bg-gray-700 rounded-lg p-4">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-gray-300">Items:</span>
+                                <span id="summary-items" class="font-medium">0</span>
+                            </div>
+                            <div class="flex justify-between mb-4">
+                                <span class="text-gray-300">Subtotal:</span>
+                                <span id="summary-subtotal" class="font-medium">$0.00</span>
+                            </div>
+                            <button id="generate-quote-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                Generate Quote
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content Area -->
+            <div class="content-area flex-1 bg-white p-4 md:p-8 overflow-y-auto">
+                <!-- Progress Indicator -->
+                <div class="step-indicator mb-8">
+                    <div id="step-1" class="step active">
+                        <div class="step-circle">1</div>
+                        <div class="step-label">Categories</div>
+                    </div>
+                    <div id="step-2" class="step">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">Products</div>
+                    </div>
+                    <div id="step-3" class="step">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">Cart</div>
+                    </div>
+                    <div id="step-4" class="step">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">Customer</div>
+                    </div>
+                    <div id="step-5" class="step">
+                        <div class="step-circle">5</div>
+                        <div class="step-label">Quotation</div>
+                    </div>
+                </div>
+                
+                <!-- Breadcrumb Navigation -->
+                <div class="breadcrumb mb-6">
+                    <span id="breadcrumb-home" class="breadcrumb-item">Home</span>
+                    <span id="breadcrumb-separator-1" class="breadcrumb-separator hidden">›</span>
+                    <span id="breadcrumb-category" class="breadcrumb-item hidden"></span>
+                    <span id="breadcrumb-separator-2" class="breadcrumb-separator hidden">›</span>
+                    <span id="breadcrumb-product" class="breadcrumb-item hidden"></span>
+                </div>
+                
+                <!-- Search and Filter -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                    <h2 id="content-title" class="text-2xl font-bold mb-4 md:mb-0">Product Categories</h2>
+                    <div class="w-full md:w-auto flex">
+                        <div class="relative flex-1 md:w-64">
+                            <input id="search-input" type="text" placeholder="Search..." class="search-bar w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Categories View -->
+                <div id="categories-view">
+                    <div class="category-grid">
+                        <!-- Categories will be dynamically inserted here -->
+                    </div>
+                </div>
+                
+                <!-- Products View -->
+                <div id="products-view" class="hidden">
+                    <div class="product-grid">
+                        <!-- Products will be dynamically inserted here -->
+                    </div>
+                </div>
+                
+                <!-- Cart View -->
+                <div id="cart-view" class="hidden">
+                    <div class="bg-white rounded-lg">
+                        <div id="cart-items" class="divide-y divide-gray-200">
+                            <!-- Cart items will be dynamically inserted here -->
+                            <div id="empty-cart-message" class="py-8 text-center text-gray-500">
+                                Your cart is empty
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 border-t border-gray-200 pt-6">
+                            <div class="flex justify-between mb-2">
+                                <span class="font-medium">Subtotal</span>
+                                <span id="cart-subtotal" class="font-medium">$0.00</span>
+                            </div>
+                            <div class="flex justify-between mb-2 text-sm text-gray-500">
+                                <span>Tax (10%)</span>
+                                <span id="cart-tax">$0.00</span>
+                            </div>
+                            <div class="flex justify-between font-bold text-lg mt-4">
+                                <span>Total</span>
+                                <span id="cart-total">$0.00</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 flex justify-between">
+                            <button id="continue-shopping" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                                Continue Shopping
+                            </button>
+                            <button id="proceed-to-customer" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                Proceed to Customer Info
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Customer Info View -->
+                <div id="customer-view" class="hidden">
+                    <div class="bg-white rounded-lg">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
+                                <input type="text" id="customer-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter customer name">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                                <input type="text" id="customer-company" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter company name">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                                <input type="email" id="customer-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter email address">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                                <input type="tel" id="customer-phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter phone number">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                <textarea id="customer-address" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter address"></textarea>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                                <textarea id="customer-notes" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter any additional notes"></textarea>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-8 flex justify-between">
+                            <button id="back-to-cart" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                                Back to Cart
+                            </button>
+                            <button id="generate-quotation" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                Generate Quotation
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quotation View -->
+                <div id="quotation-view" class="hidden">
+                    <div class="mb-4 flex flex-wrap gap-2 items-center justify-end">
+                        <!-- Dropdown ซ้าย -->
+                        <select id="quotation-no-select" class="px-3 py-1 border border-gray-300 rounded">
+                            <option value="">-- เลือกใบเสนอราคา --</option>
+                        </select>
+
+                        <!-- Input ขวา -->
+                        <input id="quotation-no-input" type="text" placeholder="หรือกรอก Quotation No." class="px-3 py-1 border border-gray-300 rounded" />
+
+                        <!-- ปุ่ม -->
+                        <button onclick="fetchQuotation()" class="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600 transition">
+                            ค้นหา
+                        </button>
+                        </div>
+                    <div class="quotation p-8 rounded-lg">
+                        <!-- Header logo and company name -->
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center">
+                                <!-- ซ้าย: โลโก้ + ชื่อบริษัท -->
+                                <div class="flex items-center gap-4">
+                                <img src="C:/Users/mwave.engineer/Documents/GitHub/Mwave-X/Product/images/m-wave.jpg" alt="M-Wave Logo" class="h-10 w-10 object-contain" />
+                                <h1 class="text-2xl font-semibold">M-Wave Marketing</h1>
+                                </div>
+                            </div>
+
+                            <!-- เส้นขีด -->
+                            <hr class="my-3 border-t border-gray-400 w-[800px] mx-auto" />
+                        </div>
+                        
+                        <!-- ส่วนหัว: Quotation + กล่องใบเสนอราคา -->
+                        <div class="flex justify-between items-start mb-6">
+                            <!-- ซ้าย: หัวเรื่องและที่อยู่บริษัท -->
+                            <div class="text-sm leading-6">
+                                <h2 class="text-2xl font-bold mb-1">Quotation</h2>
+                                <p class="font-semibold" id="quote-customer-company"></p>
+                                <p class="pt-3"id="quote-customer-address"></p>
+                            </div>
+
+                            <!-- ขวา: Page + Quotation No. -->
+                            <!-- Container ทั้งหมดจัดให้อยู่กึ่งกลาง -->
+                            <div class="text-sm flex flex-col items-center space-y-2">
+                            <p class="text-center"><strong>Page :</strong> 1 of 1</p>
+                            <p class="text-center">For further inquiries, please specify :</p>
+
+                            <div class="w-[300px] bg-blue-100 rounded-lg p-4 border border-blue-500 inline-block shadow-sm text-left">
+                                <p class="font-bold">
+                                <span>Quotation No.:</span>
+                                <span class="ml-2 font-normal">QT2408-0076 Rev. 1</span>
+                                </p>
+                                <p class="font-bold">
+                                <span>Issued Date :</span>
+                                <span class="ml-2 font-normal">27/02/25</span>
+                                </p>
+                            </div>
+                            </div>
+                        </div>
+
+                        <!-- ข้อมูลลูกค้าและฝ่ายขาย -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-x-12 text-sm leading-6 mb-6">
+                            <!-- ซ้าย: ข้อมูลลูกค้า (กิน 2 ส่วนจาก 3) -->
+                            <div class="md:col-span-2">
+                                <p><strong>Attn :</strong> <span id="quote-customer-name">K.Napakorn Klaimee</span></p>
+                                <p><strong>Tel :</strong> <span id="quote-customer-phone">038-974-173 064-569-7779</span></p>
+                                <p><strong>Email :</strong> <span id="quote-customer-email">napakorn.k@wha-gc.com</span></p>
+                                <p><strong>Customer Ref. :</strong> CMO Deflector cone for AD 14"</p>
+                                <p><strong>Enquiry Ref. :</strong> TK2408-0021</p>
+
+                                <!-- ข้อความอธิบาย -->
+                                <p class="text-sm leading-6 ">
+                                    With reference to your enquiry, we are please to offer as below for your consideration
+                                </p>
+                            </div>
+
+                            <!-- ขวา: ข้อมูลฝ่ายขาย (1 ส่วนจาก 3) -->
+                            <div class="md:col-span-1">
+                                <p><strong>Sales Person :</strong> Thapanee Khojaroen</p>
+                                <p><strong>Mobile :</strong> 063-373 4717</p>
+                                <p><strong>E-Mail :</strong> salesarea3@mwavegroup.com</p>
+                                <p><strong>Contact :</strong> Sukhuma Yuwattana</p>
+                                <p><strong>Tel :</strong> 02-1474747 #252</p>
+                                <p><strong>E-Mail :</strong> sukhuma@mwavegroup.com</p>
+                            </div>
+                        </div>
+
+
+                        <!-- ตารางรายการสินค้า -->
+                        <table class="w-full border-collapse text-sm mt-4">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                <th class="border-b border-black px-2 py-1 align-top">Item</th>
+                                <th class="border-b border-black px-2 py-1 align-top">Model</th>
+                                <th class="border-b border-black px-2 py-1 align-top">Description</th>
+                                <th class="border-b border-black px-2 py-1 align-top">Qty.</th>
+                                <th class="border-b border-black px-2 py-1 align-top">Unit</th>
+                                <th class="border-b border-black px-2 py-1 align-top">Unit Price</th>
+                                <th class="border-b border-black px-2 py-1 align-top">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quote-items">
+                                <!-- แถวสินค้าจะถูกเติมด้วย JavaScript -->
+                            </tbody>
+                        </table>
+
+                        <!-- เส้นขีดบน -->
+                        <hr class="pb-1 border-t border-t-[0.2px] border-gray-500  mx-auto" />
+
+                        <!-- เงื่อนไข -->
+                        <div class="text-sm space-y-1">
+                        <p><strong>Delivery Time :</strong> 4-5 WORKING WEEKS AFTER RECEIVED ACKNOWLEDGEMENT</p>
+                        <p><strong>Delivery Term :</strong> DDP AT SITE, Rayong Thailand</p>
+                        <p><strong>Payment Term :</strong> CREDIT 30 DAYS</p>
+                        <p><strong>Quotation Validity :</strong> 7 DAYS</p>
+                        </div>
+
+                        <!-- เส้นขีดล่าง -->
+                        <hr class="border-t border-black my-1" />
+
+                        <!-- บรรทัดเดียว: จำนวนเงินตัวอักษร + ข้อความท้าย + สรุปราคา -->
+                        <div class="flex justify-between items-start text-sm mt-2 gap-4">
+                        
+                        <!-- ฝั่งซ้าย: ข้อความรวม -->
+                        <div class="flex flex-col justify-start max-w-[65%]">
+                            <p id="quote-total-words" class="italic text-sm">
+                            <!-- คำแปลงจากยอดรวมจะมาแสดงตรงนี้ -->
+                            </p>
+                            <p class="mt-12">
+                            Kindly go through the quotation and we look forward to your favorable reply.
+                            </p>
+                        </div>
+
+                        <!-- ฝั่งขวา: สรุปราคา -->
+                        <div class="space-y-1 text-right min-w-[220px]">
+                            <div class="pb-3 flex justify-between">
+                                <span class="font-semibold">Total</span>
+                                <span id="quote-subtotal" class="ml-4">0.00</span>
+                            </div>
+                            <div class="pb-3 flex justify-between">
+                                <span class="font-semibold">VAT (7%)</span>
+                                <span id="quote-tax" class="ml-4">0.00</span>
+                            </div>
+                            <div class="flex justify-between font-bold">
+                                <span>Total Amount</span>
+                                <span id="quote-total" class="ml-4">0.00</span>
+                            </div>
+                        </div>
+                        </div>
+
+
+                        <p class="mt-6 font-bold text-base">Best Regards,</p>
+
+                       <!-- ลายเซ็นด้านขวา -->
+                        <div class="my-5 flex justify-end text-sm">
+                        <div class="text-center">
+                            <!-- ชื่ออยู่ด้านบน -->
+                            <p class="font-bold">DUSADEE.MWAVE</p>
+
+                            <!-- เส้นใต้ชื่อ -->
+                            <div class="w-[200px] h-[1px] bg-black my-1 mx-auto"></div>
+
+                            <!-- รายละเอียดลายเซ็น -->
+                            <p class="font-semibold">Authorized Signature</p>
+                            <p class="mt-1">Date : <strong>27/02/25</strong></p>
+                        </div>
+                        </div>
+
+                        <!-- เส้นคั่นด้านบน -->
+                        <hr class="my-6 border-t border-gray-300" />
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-gray-800">
+                        <!-- Nonthaburi Office -->
+                        <div class="flex items-start gap-3">
+                            <!-- Location Icon -->
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mt-1 text-gray-700 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C8.14 2 5 5.14 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.86-3.14-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
+                            </svg>
+                            <div>
+                            <p><strong>Nonthaburi (Head) Office:</strong> 73/4</p>
+                            <p>Moo. 1 Bangkruay-Sainoi Rd.,</p>
+                            <p>Banglane, Bangyai, Nonthaburi 11140</p>
+                            <p>Phone : +66 2147 4747</p>
+                            <p>Fax : +66 2921 5402</p>
+                            </div>
+                        </div>
+
+                        <!-- Rayong Office -->
+                        <div class="flex items-start gap-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mt-1 text-gray-700 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C8.14 2 5 5.14 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.86-3.14-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5s2.5 1.12 2.5 2.5S13.38 11.5 12 11.5z"/>
+                            </svg>
+                            <div>
+                            <p><strong>Rayong Office:</strong> 49/19</p>
+                            <p>Sukhumvit Rd., Nern-Pra,</p>
+                            <p>Muang, Rayong 21150</p>
+                            <p>Phone : +66 3894 7271</p>
+                            <p>Fax : +66 3894 7275</p>
+                            </div>
+                        </div>
+
+                        <!-- Website + Email -->
+                        <div class="flex items-start gap-3">
+                            <!-- รูปโลโก้ไอคอนแบบ path -->
+                            <img src="C:/Users/mwave.engineer/Documents/GitHub/Mwave-X/Product/images/world_icon.png" alt="Globe Icon" class="h-5 w-5 mt-1 object-contain" />
+                            
+                            <div>
+                                <p><strong>URL:</strong> www.mwavegroup.com</p>
+                                <p><strong>Email:</strong> sales@mwavegroup.com</p>
+                            </div>
+                        </div>
+                        </div>
+
+                        <!-- ปุ่มด้านล่างตาราง -->
+                        <div class="mt-6 flex justify-end gap-4">
+                        <button id="edit-quote" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                            Edit Quote
+                        </button>
+                        <button id="print-quote" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                            Print Quote
+                        </button>
+                        </div>
+                    </div>
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Product data - 20 categories with products
+        const products = {
+            pipe: [
+                { id: 'p1', name: 'PVC Pipe 2"', price: 0.99 },
+                { id: 'p2', name: 'Copper Pipe 1"', price: 1.49 },
+                { id: 'p3', name: 'Steel Pipe 3"', price: 2.99 }
+            ],
+            furniture: [
+                { id: 'f1', name: 'Executive Desk', price: 499.99 },
+                { id: 'f2', name: 'Ergonomic Chair', price: 299.99 },
+                { id: 'f3', name: 'Conference Table', price: 899.99 }
+            ],
+            software: [
+                { id: 's1', name: 'CRM License (Annual)', price: 599.99 },
+                { id: 's2', name: 'Design Suite', price: 899.99 },
+                { id: 's3', name: 'Security Package', price: 399.99 }
+            ],
+            networking: [
+                { id: 'n1', name: 'Enterprise Router', price: 1299.99 },
+                { id: 'n2', name: 'Managed Switch', price: 499.99 },
+                { id: 'n3', name: 'Wireless Access Point', price: 199.99 }
+            ],
+            servers: [
+                { id: 'sv1', name: 'Rack Server', price: 2999.99 },
+                { id: 'sv2', name: 'Tower Server', price: 1999.99 },
+                { id: 'sv3', name: 'Blade Server', price: 3999.99 }
+            ],
+            storage: [
+                { id: 'st1', name: 'NAS Storage 8TB', price: 899.99 },
+                { id: 'st2', name: 'SAN Storage System', price: 4999.99 },
+                { id: 'st3', name: 'External Hard Drive 2TB', price: 129.99 }
+            ],
+            printing: [
+                { id: 'p1', name: 'Laser Printer', price: 349.99 },
+                { id: 'p2', name: '3D Printer', price: 1299.99 },
+                { id: 'p3', name: 'Multifunction Printer', price: 499.99 }
+            ],
+            audiovisual: [
+                { id: 'av1', name: 'Projector', price: 799.99 },
+                { id: 'av2', name: 'Conference Speaker', price: 299.99 },
+                { id: 'av3', name: 'Video Conferencing System', price: 1999.99 }
+            ],
+            security: [
+                { id: 'sec1', name: 'CCTV System', price: 1299.99 },
+                { id: 'sec2', name: 'Access Control System', price: 899.99 },
+                { id: 'sec3', name: 'Alarm System', price: 499.99 }
+            ],
+            office: [
+                { id: 'o1', name: 'Paper Shredder', price: 149.99 },
+                { id: 'o2', name: 'Binding Machine', price: 199.99 },
+                { id: 'o3', name: 'Laminator', price: 129.99 }
+            ],
+            lighting: [
+                { id: 'l1', name: 'LED Panel Lights (10 pack)', price: 299.99 },
+                { id: 'l2', name: 'Smart Lighting System', price: 499.99 },
+                { id: 'l3', name: 'Desk Lamp', price: 79.99 }
+            ],
+            hvac: [
+                { id: 'h1', name: 'Air Conditioner', price: 899.99 },
+                { id: 'h2', name: 'Air Purifier', price: 299.99 },
+                { id: 'h3', name: 'Smart Thermostat', price: 199.99 }
+            ],
+            kitchen: [
+                { id: 'k1', name: 'Commercial Refrigerator', price: 1999.99 },
+                { id: 'k2', name: 'Coffee Machine', price: 499.99 },
+                { id: 'k3', name: 'Microwave', price: 199.99 }
+            ],
+            cleaning: [
+                { id: 'c1', name: 'Industrial Vacuum', price: 399.99 },
+                { id: 'c2', name: 'Floor Scrubber', price: 899.99 },
+                { id: 'c3', name: 'Cleaning Supplies Bundle', price: 199.99 }
+            ],
+            safety: [
+                { id: 'sf1', name: 'First Aid Kit', price: 99.99 },
+                { id: 'sf2', name: 'Fire Extinguisher (5 pack)', price: 299.99 },
+                { id: 'sf3', name: 'Emergency Exit Signs', price: 149.99 }
+            ],
+            transportation: [
+                { id: 't1', name: 'Electric Forklift', price: 9999.99 },
+                { id: 't2', name: 'Hand Truck', price: 149.99 },
+                { id: 't3', name: 'Utility Cart', price: 199.99 }
+            ],
+            signage: [
+                { id: 'sg1', name: 'Digital Signage Display', price: 1299.99 },
+                { id: 'sg2', name: 'LED Sign', price: 899.99 },
+                { id: 'sg3', name: 'Custom Vinyl Banner', price: 199.99 }
+            ],
+            telecommunications: [
+                { id: 'tc1', name: 'VoIP Phone System (10 users)', price: 1499.99 },
+                { id: 'tc2', name: 'Conference Phone', price: 399.99 },
+                { id: 'tc3', name: 'Headset (5 pack)', price: 299.99 }
+            ],
+            tools: [
+                { id: 'tl1', name: 'Power Tool Set', price: 599.99 },
+                { id: 'tl2', name: 'Tool Cabinet', price: 399.99 },
+                { id: 'tl3', name: 'Precision Tool Kit', price: 199.99 }
+            ],
+            training: [
+                { id: 'tr1', name: 'Training Workshop (10 people)', price: 1999.99 },
+                { id: 'tr2', name: 'E-Learning Platform (Annual)', price: 999.99 },
+                { id: 'tr3', name: 'Training Materials Bundle', price: 299.99 }
+            ]
+        };
+        
+
+        // Category icons and colors
+        const categoryIcons = {
+            pipe: { icon: '🛠️', color: 'blue' },
+            furniture: { icon: '🪑', color: 'green' },
+            software: { icon: '💿', color: 'purple' },
+            networking: { icon: '🌐', color: 'indigo' },
+            servers: { icon: '🖥️', color: 'gray' },
+            storage: { icon: '💾', color: 'teal' },
+            printing: { icon: '🖨️', color: 'red' },
+            audiovisual: { icon: '🎬', color: 'pink' },
+            security: { icon: '🔒', color: 'yellow' },
+            office: { icon: '📎', color: 'orange' },
+            lighting: { icon: '💡', color: 'amber' },
+            hvac: { icon: '❄️', color: 'cyan' },
+            kitchen: { icon: '🍽️', color: 'lime' },
+            cleaning: { icon: '🧹', color: 'emerald' },
+            safety: { icon: '🚨', color: 'rose' },
+            transportation: { icon: '🚚', color: 'fuchsia' },
+            signage: { icon: '🪧', color: 'violet' },
+            telecommunications: { icon: '📞', color: 'sky' },
+            tools: { icon: '🔧', color: 'stone' },
+            training: { icon: '📚', color: 'amber' }
+        };
+        
+       // บีบเก็บ map ของ user icons จาก localStorage
+        const userCategoryIcons = (() => {
+            try {
+                return JSON.parse(localStorage.getItem('userCategoryIcons')) || {};
+            } catch {
+                return {};
+            }
+        })();
+        
+        // State management
+        let currentState = 'categories'; // categories, products, cart, customer, quotation
+        let selectedCategory = null;
+        let searchTerm = '';
+        let categories = [];
+        // Shopping cart
+        let cart = [];
+        
+        // DOM elements
+        const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+        const navItems = document.getElementById('nav-items');
+        const navCategories = document.getElementById('nav-categories');
+        const navProducts = document.getElementById('nav-products');
+        const navCart = document.getElementById('nav-cart');
+        const navCustomer = document.getElementById('nav-customer');
+        const navQuotation = document.getElementById('nav-quotation');
+        
+        const categoriesView = document.getElementById('categories-view');
+        const productsView = document.getElementById('products-view');
+        const cartView = document.getElementById('cart-view');
+        const customerView = document.getElementById('customer-view');
+        const quotationView = document.getElementById('quotation-view');
+        
+        const contentTitle = document.getElementById('content-title');
+        const searchInput = document.getElementById('search-input');
+        
+        const breadcrumbHome = document.getElementById('breadcrumb-home');
+        const breadcrumbCategory = document.getElementById('breadcrumb-category');
+        const breadcrumbProduct = document.getElementById('breadcrumb-product');
+        const breadcrumbSeparator1 = document.getElementById('breadcrumb-separator-1');
+        const breadcrumbSeparator2 = document.getElementById('breadcrumb-separator-2');
+        
+        const cartBadge = document.getElementById('cart-badge');
+        const summaryItems = document.getElementById('summary-items');
+        const summarySubtotal = document.getElementById('summary-subtotal');
+        const generateQuoteBtn = document.getElementById('generate-quote-btn');
+        
+        const cartSubtotal = document.getElementById('cart-subtotal');
+        const cartTax = document.getElementById('cart-tax');
+        const cartTotal = document.getElementById('cart-total');
+        const emptyCartMessage = document.getElementById('empty-cart-message');
+        
+        const continueShoppingBtn = document.getElementById('continue-shopping');
+        const proceedToCustomerBtn = document.getElementById('proceed-to-customer');
+        
+        const backToCartBtn = document.getElementById('back-to-cart');
+        const generateQuotationBtn = document.getElementById('generate-quotation');
+        
+        const editQuoteBtn = document.getElementById('edit-quote');
+        const printQuoteBtn = document.getElementById('print-quote');
+        
+        // Step indicators
+        const step1 = document.getElementById('step-1');
+        const step2 = document.getElementById('step-2');
+        const step3 = document.getElementById('step-3');
+        const step4 = document.getElementById('step-4');
+        const step5 = document.getElementById('step-5');
+        
+        // Initialize the application
+        function init() {
+            // Mobile menu toggle
+            mobileMenuToggle.addEventListener('click', () => {
+                navItems.classList.toggle('hidden');
+            });
+            
+            // Navigation listeners
+            navCategories.addEventListener('click', () => navigateTo('categories'));
+            navProducts.addEventListener('click', () => {
+                if (selectedCategory) {
+                    navigateTo('products');
+                } else {
+                    navigateTo('categories');
+                }
+            });
+            navCart.addEventListener('click', () => navigateTo('cart'));
+            navCustomer.addEventListener('click', () => {
+                if (cart.length > 0) {
+                    navigateTo('customer');
+                } else {
+                    alert('Please add items to your cart first');
+                }
+            });
+            navQuotation.addEventListener('click', () => {
+                navigateTo('quotation');
+            });
+            
+            // Breadcrumb listeners
+            breadcrumbHome.addEventListener('click', () => navigateTo('categories'));
+            breadcrumbCategory.addEventListener('click', () => navigateTo('products'));
+            
+            // Button listeners
+            continueShoppingBtn.addEventListener('click', () => {
+                if (selectedCategory) {
+                    navigateTo('products');
+                } else {
+                    navigateTo('categories');
+                }
+            });
+            
+            proceedToCustomerBtn.addEventListener('click', () => navigateTo('customer'));
+            backToCartBtn.addEventListener('click', () => navigateTo('cart'));
+            generateQuotationBtn.addEventListener('click', generateQuotation);
+            
+            editQuoteBtn.addEventListener('click', () => navigateTo('customer'));
+            printQuoteBtn.addEventListener('click', printQuotation);
+            
+            generateQuoteBtn.addEventListener('click', () => {
+                if (cart.length > 0) {
+                    navigateTo('customer');
+                } else {
+                    alert('Please add items to your cart first');
+                }
+            });
+            
+            // Search input listener
+            searchInput.addEventListener('input', (e) => {
+                searchTerm = e.target.value.toLowerCase();
+                if (currentState === 'categories') {
+                    renderCategories();
+                } else if (currentState === 'products') {
+                    renderProducts();
+                }
+            });
+            
+            const storedCategories = localStorage.getItem('categories');
+            if (storedCategories) {
+                categories = JSON.parse(storedCategories);
+            }
+            
+            // Load categories
+            renderCategories();
+            updateCartSummary();
+        }
+        
+        // Navigate to a specific view
+        function navigateTo(state) {
+            currentState = state;
+
+            // Update navigation
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+
+            // Update step indicators
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.remove('active');
+                step.classList.remove('completed');
+            });
+
+            // Hide all views
+            categoriesView.classList.add('hidden');
+            productsView.classList.add('hidden');
+            cartView.classList.add('hidden');
+            customerView.classList.add('hidden');
+            quotationView.classList.add('hidden');
+
+            // Update breadcrumb
+            breadcrumbCategory.classList.add('hidden');
+            breadcrumbSeparator1.classList.add('hidden');
+            breadcrumbProduct.classList.add('hidden');
+            breadcrumbSeparator2.classList.add('hidden');
+
+            // ซ่อน/แสดง search input เฉพาะหน้า categories, products
+            if (state === 'categories' || state === 'products') {
+                searchInput.parentElement.parentElement.style.display = '';
+            } else {
+                searchInput.parentElement.parentElement.style.display = 'none';
+            }
+
+            // Show appropriate view based on state
+            switch(state) {
+                case 'categories':
+                    navCategories.classList.add('active');
+                    categoriesView.classList.remove('hidden');
+                    contentTitle.textContent = 'Product Categories';
+                    step1.classList.add('active');
+                    break;
+
+                case 'products':
+                    navProducts.classList.add('active');
+                    productsView.classList.remove('hidden');
+                    contentTitle.textContent = `${getCategoryNameById(selectedCategory)} Products`;
+
+                    // Update breadcrumb
+                    breadcrumbCategory.textContent = getCategoryNameById(selectedCategory);
+                    breadcrumbCategory.classList.remove('hidden');
+                    breadcrumbSeparator1.classList.remove('hidden');
+
+                    step1.classList.add('completed');
+                    step2.classList.add('active');
+
+                    renderProducts();
+                    break;
+
+                case 'cart':
+                    navCart.classList.add('active');
+                    cartView.classList.remove('hidden');
+                    contentTitle.textContent = 'Shopping Cart';
+
+                    step1.classList.add('completed');
+                    step2.classList.add('completed');
+                    step3.classList.add('active');
+
+                    renderCart();
+                    break;
+
+                case 'customer':
+                    navCustomer.classList.add('active');
+                    customerView.classList.remove('hidden');
+                    contentTitle.textContent = 'Customer Information';
+
+                    step1.classList.add('completed');
+                    step2.classList.add('completed');
+                    step3.classList.add('completed');
+                    step4.classList.add('active');
+                    break;
+
+                case 'quotation':
+                    navQuotation.classList.add('active');
+                    quotationView.classList.remove('hidden');
+                    contentTitle.textContent = 'Quotation';
+
+                    step1.classList.add('completed');
+                    step2.classList.add('completed');
+                    step3.classList.add('completed');
+                    step4.classList.add('completed');
+                    step5.classList.add('active');
+                    loadQuotationDropdown();
+                    break;
+            }
+        }
+        
+        // Render categories
+        function renderCategories() {
+            const categoriesGrid = document.querySelector('#categories-view .category-grid');
+            categoriesGrid.innerHTML = '';
+
+            // ✅ โหลด categories สดจาก localStorage
+            const stored = localStorage.getItem('categories');
+            if (stored) {
+                categories = JSON.parse(stored);
+            }
+
+            const allProducts = getMergedProducts();
+            const categoryKeys = Object.keys(allProducts);
+
+            const filteredCategories = searchTerm
+                ? categoryKeys.filter(cat => cat.toLowerCase().includes(searchTerm))
+                : categoryKeys;
+
+            // ✅ โหลดชื่อหมวดหมู่จาก categories[]
+            const categoryNameMap = {};
+            categories.forEach(cat => {
+                categoryNameMap[cat.id.toLowerCase()] = cat.name;
+            });
+
+            // ✅ โหลด icons จาก localStorage (ของแอดมิน)
+            let userCategoryIcons = {};
+            try {
+                userCategoryIcons = JSON.parse(localStorage.getItem('userCategoryIcons')) || {};
+            } catch (e) {
+                userCategoryIcons = {};
+            }
+
+            filteredCategories.forEach(categoryId => {
+                const icon = userCategoryIcons[categoryId]?.icon || categoryIcons[categoryId]?.icon || '📦';
+                const displayName = categoryNameMap[categoryId.toLowerCase()] || capitalizeFirstLetter(categoryId);
+
+                const categoryCard = document.createElement('div');
+                categoryCard.className = 'category-card bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg';
+                categoryCard.innerHTML = `
+                    <div class="p-6 text-center">
+                        <div class="text-4xl mb-3">${icon}</div>
+                        <h3 class="font-medium text-lg">${displayName}</h3>
+                        <p class="text-gray-500 text-sm mt-1">${allProducts[categoryId].length} products</p>
+                    </div>
+                `;
+
+                categoryCard.addEventListener('click', () => {
+                    selectedCategory = categoryId;
+                    navigateTo('products');
+                });
+
+                categoriesGrid.appendChild(categoryCard);
+            });
+
+            if (filteredCategories.length === 0) {
+                categoriesGrid.innerHTML = `
+                    <div class="col-span-full py-8 text-center text-gray-500">
+                        No categories found matching "${searchTerm}"
+                    </div>
+                `;
+            }
+        }
+
+        // Render products for selected category
+        function renderProducts() {
+            const productsView = document.getElementById('products-view');
+            const productsGrid = productsView.querySelector('.product-grid');
+            productsGrid.innerHTML = '';
+
+            const oldAddBtn = document.getElementById('add-pipe-btn');
+            if (oldAddBtn) oldAddBtn.remove();
+
+            if (!selectedCategory) return;
+
+            const allProducts = getMergedProducts();
+            const categoryProducts = allProducts[selectedCategory] || [];
+
+            const filteredProducts = searchTerm
+                ? categoryProducts.filter(product => product.name.toLowerCase().includes(searchTerm))
+                : categoryProducts;
+
+            // ✅ Load user-defined category icons
+            let userCategoryIcons = {};
+            try {
+                userCategoryIcons = JSON.parse(localStorage.getItem('userCategoryIcons')) || {};
+            } catch (e) {
+                userCategoryIcons = {};
+            }
+
+            const categoryKey = selectedCategory.toLowerCase();
+            const { icon = '📦' } = userCategoryIcons[categoryKey] || categoryIcons[categoryKey] || {};
+
+            if (selectedCategory === 'pipe') {
+                const addPipeBtn = document.createElement('button');
+                addPipeBtn.id = 'add-pipe-btn';
+                addPipeBtn.className = 'mb-4 ml-auto flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition';
+                addPipeBtn.innerHTML = `<span class="text-lg">➕</span> Add New Pipe`;
+                addPipeBtn.onclick = () => {
+                    window.open('add-pipe.html', '_blank');
+                };
+                productsView.insertBefore(addPipeBtn, productsGrid);
+            }
+
+            filteredProducts.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'product-card bg-white rounded-lg shadow-md overflow-hidden';
+
+                const inCart = cart.some(item => item.id === product.id);
+                if (inCart) productCard.classList.add('selected');
+
+                productCard.innerHTML = `
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="text-3xl">${icon}</div>
+                            <div class="text-sm font-mono bg-gray-100 px-2 py-1 rounded">${product.id.toUpperCase()}</div>
+                        </div>
+                        <h3 class="font-medium text-lg mb-2">${product.name}</h3>
+                        <div class="text-lg font-bold mb-2">$${product.price.toFixed(2)}</div>
+
+                        ${product.id.startsWith('custom-') ? `
+                        <button class="toggle-details text-sm text-blue-500 hover:underline mb-2">Show Details</button>
+                        <div class="details hidden text-sm text-gray-600 mb-2">
+                            <p><strong>Diameter:</strong> ${product.diameter}"</p>
+                            <p><strong>Length:</strong> ${product.length} mm</p>
+                            <p><strong>PTFE Grade:</strong> ${product.ptfeGrade}</p>
+                            <p><strong>Coating:</strong> ${product.coating}</p>
+                            <p><strong>Flange:</strong> ${product.flangeConfig}</p>
+                            <p><strong>Features:</strong> ${
+                                ['ventHole', 'grounding', 'vacuumRated']
+                                .filter(k => product[k])
+                                .map(k => k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1'))
+                                .join(', ') || 'None'}
+                            </p>
+                        </div>` : ''}
+
+                        <div class="flex justify-between items-center">
+                            <button class="add-to-cart-btn px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors ${inCart ? 'hidden' : ''}">
+                                Add to Cart
+                            </button>
+                            <div class="quantity-control ${inCart ? '' : 'hidden'}">
+                                <div class="quantity-btn minus" data-id="${product.id}">-</div>
+                                <input type="number" class="quantity-input" value="${inCart ? cart.find(item => item.id === product.id).quantity : 1}" min="1" data-id="${product.id}">
+                                <div class="quantity-btn plus" data-id="${product.id}">+</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                productCard.querySelector('.toggle-details')?.addEventListener('click', (e) => {
+                    const details = productCard.querySelector('.details');
+                    const isVisible = !details.classList.contains('hidden');
+                    details.classList.toggle('hidden');
+                    e.target.textContent = isVisible ? 'Show Details' : 'Hide Details';
+                });
+
+                const addToCartBtn = productCard.querySelector('.add-to-cart-btn');
+                addToCartBtn.addEventListener('click', () => {
+                    product.category = selectedCategory; // ✅ สำคัญสำหรับ cart
+                    addToCart(product);
+                    productCard.classList.add('selected');
+                    addToCartBtn.classList.add('hidden');
+                    productCard.querySelector('.quantity-control').classList.remove('hidden');
+                });
+
+                const minusBtn = productCard.querySelector('.quantity-btn.minus');
+                const plusBtn = productCard.querySelector('.quantity-btn.plus');
+                const quantityInput = productCard.querySelector('.quantity-input');
+
+                minusBtn.addEventListener('click', () => {
+                    const id = minusBtn.dataset.id;
+                    const cartItem = cart.find(item => item.id === id);
+                    if (cartItem && cartItem.quantity > 1) {
+                        cartItem.quantity--;
+                        quantityInput.value = cartItem.quantity;
+                        updateCartSummary();
+                    } else if (cartItem && cartItem.quantity === 1) {
+                        removeFromCart(id);
+                        productCard.classList.remove('selected');
+                        addToCartBtn.classList.remove('hidden');
+                        productCard.querySelector('.quantity-control').classList.add('hidden');
+                    }
+                });
+
+                plusBtn.addEventListener('click', () => {
+                    const id = plusBtn.dataset.id;
+                    const cartItem = cart.find(item => item.id === id);
+                    if (cartItem) {
+                        cartItem.quantity++;
+                        quantityInput.value = cartItem.quantity;
+                        updateCartSummary();
+                    }
+                });
+
+                quantityInput.addEventListener('change', () => {
+                    const id = quantityInput.dataset.id;
+                    const value = parseInt(quantityInput.value) || 1;
+                    const cartItem = cart.find(item => item.id === id);
+                    if (cartItem) {
+                        cartItem.quantity = Math.max(1, value);
+                        quantityInput.value = cartItem.quantity;
+                        updateCartSummary();
+                    }
+                });
+
+                productsGrid.appendChild(productCard);
+            });
+
+            if (filteredProducts.length === 0) {
+                productsGrid.innerHTML = `
+                    <div class="col-span-full py-8 text-center text-gray-500">
+                        No products found matching "${searchTerm}"
+                    </div>
+                `;
+            }
+        }
+
+
+        // Render cart
+        function renderCart() {
+            const cartItemsContainer = document.getElementById('cart-items');
+            cartItemsContainer.innerHTML = '';
+
+            if (cart.length === 0) {
+                emptyCartMessage.classList.remove('hidden');
+                proceedToCustomerBtn.disabled = true;
+                proceedToCustomerBtn.classList.add('opacity-50');
+                updateCartTotals();
+                return;
+            }
+
+            emptyCartMessage.classList.add('hidden');
+            proceedToCustomerBtn.disabled = false;
+            proceedToCustomerBtn.classList.remove('opacity-50');
+
+            // โหลด icon map จาก localStorage
+            let userCategoryIcons = {};
+            try {
+                userCategoryIcons = JSON.parse(localStorage.getItem('userCategoryIcons')) || {};
+            } catch {}
+
+            cart.forEach((item, index) => {
+                const categoryKey = item.category?.toLowerCase?.() || 'uncategorized';
+                const { icon = '📦' } = userCategoryIcons[categoryKey] || categoryIcons[categoryKey] || {};
+                const itemTotal = item.price * item.quantity;
+
+                const cartItem = document.createElement('div');
+                cartItem.className = 'cart-item p-4 flex justify-between items-center';
+                cartItem.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="text-2xl mr-4">${icon}</div>
+                        <div>
+                            <h4 class="font-medium">${item.name}</h4>
+                            <div class="text-sm text-gray-500">${getCategoryNameById(item.category)} • $${item.price.toFixed(2)}</div>
+                            ${item.diameter ? `
+                                <div class="mt-1 text-xs text-gray-600 leading-5">
+                                    <p><strong>Diameter:</strong> ${item.diameter}"</p>
+                                    <p><strong>Length:</strong> ${item.length} mm</p>
+                                    <p><strong>PTFE Grade:</strong> ${item.ptfeGrade}</p>
+                                    <p><strong>Coating:</strong> ${item.coating}</p>
+                                    <p><strong>Flange:</strong> ${item.flangeConfig}</p>
+                                    <p><strong>Features:</strong> ${['ventHole', 'grounding', 'vacuumRated']
+                                        .filter(k => item[k])
+                                        .map(k => k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1'))
+                                        .join(', ') || 'None'}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="quantity-control mr-4">
+                            <div class="quantity-btn minus" data-index="${index}">-</div>
+                            <input type="number" class="quantity-input" value="${item.quantity}" min="1" data-index="${index}">
+                            <div class="quantity-btn plus" data-index="${index}">+</div>
+                        </div>
+                        <div class="text-right mr-4">
+                            <div class="font-medium">$${itemTotal.toFixed(2)}</div>
+                        </div>
+                        <button class="remove-item text-gray-400 hover:text-red-500" data-id="${item.id}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+
+                cartItemsContainer.appendChild(cartItem);
+            });
+
+            // Event: - ลดจำนวน
+            document.querySelectorAll('.quantity-btn.minus').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const index = parseInt(btn.dataset.index);
+                    if (cart[index].quantity > 1) {
+                        cart[index].quantity--;
+                    } else {
+                        removeFromCart(cart[index].id);
+                    }
+                    renderCart();
+                });
+            });
+
+            // Event: + เพิ่มจำนวน
+            document.querySelectorAll('.quantity-btn.plus').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const index = parseInt(btn.dataset.index);
+                    cart[index].quantity++;
+                    renderCart();
+                });
+            });
+
+            // Event: ป้อนจำนวนโดยตรง
+            document.querySelectorAll('.quantity-input').forEach(input => {
+                input.addEventListener('change', () => {
+                    const index = parseInt(input.dataset.index);
+                    const value = parseInt(input.value) || 1;
+                    cart[index].quantity = Math.max(1, value);
+                    renderCart();
+                });
+            });
+
+            // Event: ลบสินค้า
+            document.querySelectorAll('.remove-item').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.dataset.id;
+                    removeFromCart(id);
+                    renderCart();
+                });
+            });
+
+            updateCartSummary();
+            updateCartTotals();
+        }
+
+        // Add product to cart
+        function addToCart(product) {
+            const existingItem = cart.find(item => item.id === product.id);
+            
+            if (existingItem) {
+                existingItem.quantity++;
+            } else {
+                cart.push({
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    quantity: 1,
+                    category: selectedCategory
+                });
+            }
+            
+            updateCartSummary();
+        }
+        
+        // Remove product from cart
+        function removeFromCart(productId) {
+            if (!productId) return; // หยุดหากไม่มีค่า
+
+            cart = cart.filter(item => String(item.id) !== String(productId));
+            updateCartSummary();
+        }
+
+        // Update cart summary in sidebar
+        function updateCartSummary() {
+            const totalItems = cart.reduce((total, item) => total + item.quantity, 0);
+            const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+            
+            cartBadge.textContent = cart.length;
+            summaryItems.textContent = totalItems;
+            summarySubtotal.textContent = `$${subtotal.toFixed(2)}`;
+            
+            // Enable/disable generate quote button
+            generateQuoteBtn.disabled = cart.length === 0;
+            if (cart.length === 0) {
+                generateQuoteBtn.classList.add('opacity-50');
+            } else {
+                generateQuoteBtn.classList.remove('opacity-50');
+            }
+        }
+        
+        // Update cart totals in cart view
+        function updateCartTotals() {
+            const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+            const tax = subtotal * 0.1; // 10% tax
+            const total = subtotal + tax;
+            
+            cartSubtotal.textContent = `$${subtotal.toFixed(2)}`;
+            cartTax.textContent = `$${tax.toFixed(2)}`;
+            cartTotal.textContent = `$${total.toFixed(2)}`;
+        }
+        
+        // Generate quotation
+        async function generateQuotation() {
+            const getValue = id => document.getElementById(id)?.value || '';
+            const setText = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+
+            // Validate required fields
+            const customerName = getValue('customer-name');
+            const customerEmail = getValue('customer-email');
+            if (!customerName || !customerEmail) {
+                alert('Please fill in required fields (Name and Email)');
+                return;
+            }
+            if (!cart.length) {
+                alert('Cart is empty');
+                return;
+            }
+
+            // Get Quotation No. (จาก input หรือ auto generate)
+            const quotationNo = getValue('quotation-no-input') || document.querySelector('.quotation .font-normal')?.textContent || '';
+            const qNoSpan = document.querySelector('.quotation .font-normal');
+            if (qNoSpan && quotationNo) qNoSpan.textContent = quotationNo;
+
+            // Get other customer inputs
+            const customerCompany = getValue('customer-company');
+            const customerPhone = getValue('customer-phone');
+            const customerAddress = getValue('customer-address');
+            const customerNotes = getValue('customer-notes');
+
+            // Set quotation date
+            const today = new Date().toLocaleDateString('en-GB'); // dd/mm/yyyy
+            setText('quote-date', today);
+
+            // Fill customer info into the quotation view
+            setText('quote-customer-name', customerName);
+            setText('quote-customer-email', customerEmail);
+            setText('quote-customer-phone', customerPhone);
+            setText('quote-customer-company', customerCompany);
+            setText('quote-customer-address', customerAddress);
+            setText('quote-notes', customerNotes || 'No additional notes.');
+
+            
+            // แสดงรายการสินค้าในใบเสนอราคา
+            renderQuotationItems();
+
+            // ส่งข้อมูลไป Google Sheet
+            await sendCartToGoogleSheet();
+            // Show quotation view
+            navigateTo('quotation');
+        }
+
+        function numberToWordsBaht(num) {
+            const a = [
+                '', 'one', 'two', 'three', 'four', 'five',
+                'six', 'seven', 'eight', 'nine', 'ten', 'eleven',
+                'twelve', 'thirteen', 'fourteen', 'fifteen',
+                'sixteen', 'seventeen', 'eighteen', 'nineteen'
+            ];
+            const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty',
+                'sixty', 'seventy', 'eighty', 'ninety'];
+
+            const numToWords = (n) => {
+                if (n < 20) return a[n];
+                if (n < 100) return b[Math.floor(n / 10)] + (n % 10 ? '-' + a[n % 10] : '');
+                if (n < 1000) return a[Math.floor(n / 100)] + ' hundred' + (n % 100 ? ' ' + numToWords(n % 100) : '');
+                if (n < 1000000) return numToWords(Math.floor(n / 1000)) + ' thousand' + (n % 1000 ? ' ' + numToWords(n % 1000) : '');
+                return '';
+            };
+
+            const rounded = Math.round(num); // ปัดเศษทศนิยม
+            const words = numToWords(rounded);
+
+            return `(${words.toUpperCase()} BAHT ONLY)`;
+            }
+
+        // Print quotation
+        function printQuotation() {
+            window.print();
+        }
+        
+        function getCategoryNameById(id) {
+            if (!id || !Array.isArray(categories)) return id;
+            const found = categories.find(c => c.id.toLowerCase() === id.toLowerCase());
+            return found ? found.name : capitalizeFirstLetter(id);
+        }
+
+        // Helper function to capitalize first letter
+        function capitalizeFirstLetter(string) {
+            return string.charAt(0).toUpperCase() + string.slice(1);
+        }
+        
+        // Initialize the application
+        init();
+        // Listen for messages from add-pipe.html
+        window.addEventListener('message', function (event) {
+            const { type, payload, autoNavigateToCart } = event.data;
+
+            if (type === 'ADD_PIPES_FROM_BUILDER') {
+                const pipeProducts = payload;
+
+                pipeProducts.forEach(pipe => {
+                    const existingPipes = products.pipe.filter(p => p.id.startsWith('P'));
+                    const nextPipeNumber = existingPipes.length + 1;
+                    const id = `P${nextPipeNumber}`;
+                    const name = `Custom PTFE ${pipe.diameter}" (${pipe.length}mm)`;
+                    const price = 9.99;
+
+                    const product = {
+                        id,
+                        name,
+                        price,
+                        category: 'pipe',
+                        diameter: pipe.diameter,
+                        length: pipe.length,
+                        ptfeGrade: pipe.ptfeGrade,
+                        coating: pipe.coating,
+                        flangeConfig: pipe.flangeConfig,
+                        ventHole: pipe.ventHole,
+                        grounding: pipe.grounding,
+                        vacuumRated: pipe.vacuumRated
+                    };
+
+                    products.pipe.push(product);
+
+                    // ✅ ใส่ในตะกร้าทันที
+                    cart.push({
+                        ...product,
+                        quantity: 1
+                    });
+                });
+
+                updateCartSummary();
+
+                if (autoNavigateToCart) {
+                    navigateTo('cart');
+                }
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // โหลดข้อมูล grouped object เช่น { electronics: [...], furniture: [...] }
+            const grouped = JSON.parse(localStorage.getItem('products')) || {};
+
+            // รวมสินค้าทั้งหมดจากทุกหมวดหมู่เป็น array เดียว
+            const products = Object.values(grouped).flat();
+
+            const quoteItems = document.getElementById('quote-items');
+            let subtotal = 0;
+
+            products.forEach((item, index) => {
+                const itemTotal = item.price; // คิดแบบ 1 ชิ้นต่อรายการ
+                subtotal += itemTotal;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="border px-2 py-1">${index + 1}</td>
+                    <td class="border px-2 py-1">${item.id}</td>
+                    <td class="border px-2 py-1">${item.name}</td>
+                    <td class="border px-2 py-1 text-center">1</td>
+                    <td class="border px-2 py-1 text-center">PCS</td>
+                    <td class="border px-2 py-1 text-right">${item.price.toFixed(2)}</td>
+                    <td class="border px-2 py-1 text-right">${item.price.toFixed(2)}</td>
+                `;
+                quoteItems.appendChild(row);
+            });
+
+            const vat = subtotal * 0.07;
+            const total = subtotal + vat;
+
+            // ใส่ค่าลงในช่องแสดงผล
+            document.getElementById('quote-subtotal').textContent = subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 });
+            document.getElementById('quote-tax').textContent = vat.toLocaleString(undefined, { minimumFractionDigits: 2 });
+            document.getElementById('quote-total').textContent = total.toLocaleString(undefined, { minimumFractionDigits: 2 });
+
+            // แปลงตัวเลขเป็นข้อความ (ถ้ามีช่องแสดงข้อความตัวเลข)
+            if (document.getElementById('quote-total-words')) {
+                document.getElementById('quote-total-words').textContent = numberToWordsBaht(total);
+            }
+        });
+
+            function getMergedProducts() {
+                const localProducts = JSON.parse(localStorage.getItem('products')) || {};
+                const merged = { ...products }; // จาก products ที่ define ไว้ใน script
+
+                // รวมสินค้าในแต่ละหมวด
+                for (const [category, items] of Object.entries(localProducts)) {
+                    if (!merged[category]) merged[category] = [];
+                    merged[category] = merged[category].concat(items);
+                }
+                return merged;
+            }
+        
+            async function sendCartToGoogleSheet() {
+                const quotationNoEl = document.querySelector('.quotation [class*="font-normal"]');
+                let quotationNo = quotationNoEl.textContent.trim();
+
+                // ✅ ฟังก์ชันเพิ่ม Rev
+                function incrementRevision(no) {
+                    const revMatch = no.match(/Rev\. (\d+)/i);
+                    if (!revMatch) return no + ' Rev. 1';
+
+                    const base = no.replace(/Rev\..*/, '').trim();
+                    const revNum = parseInt(revMatch[1], 10);
+                    const newRev = revNum + 1;
+
+                    return `${base} Rev. ${newRev}`;
+                }
+
+                // ✅ สร้างหมายเลขใบเสนอราคาใหม่พร้อม Rev
+                const newQuotationNo = incrementRevision(quotationNo);
+                quotationNoEl.textContent = newQuotationNo;
+
+                // ✅ ดึงข้อมูลลูกค้าจาก input
+                const getValue = id => document.getElementById(id)?.value?.trim() || '';
+                const customerName = getValue('customer-name');
+                const email = getValue('customer-email');
+                const phone = getValue('customer-phone');
+                const company = getValue('customer-company');
+                const address = getValue('customer-address');
+                const notes = getValue('customer-notes');
+
+                // ✅ ส่งข้อมูลทั้งหมดไปยัง backend
+                for (const item of cart) {
+                    try {
+                        await fetch('http://localhost:8000/add_product', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                quotation_no: newQuotationNo,
+                                category: item.category,
+                                product_id: item.id || '-',
+                                name: item.name,
+                                price: item.price,
+                                quantity: item.quantity,
+
+                                // ✅ ข้อมูลลูกค้า
+                                customer_name: customerName,
+                                email: email,
+                                phone: phone,
+                                company: company,
+                                address: address,
+                                notes: notes
+                            })
+                        });
+                    } catch (e) {
+                        console.error('Error sending product to Google Sheet:', e);
+                    }
+                }
+            }
+
+            async function fetchQuotation() {
+                const selectValue = document.getElementById('quotation-no-select')?.value?.trim();
+                const inputValue = document.getElementById('quotation-no-input')?.value?.trim();
+                const quotationNo = inputValue || selectValue;
+
+                if (!quotationNo) {
+                    return alert('กรุณาเลือกใบเสนอราคา');
+                }
+
+                try {
+                    const res = await fetch(`http://localhost:8000/quotation/${quotationNo}`);
+                    const data = await res.json();
+
+                    // ✅ โหลดสินค้า
+                    cart = data.items.map(item => ({
+                        ...item,
+                        id: item.product_id || item.id || '-'
+                    }));
+
+                    // ✅ ใส่ข้อมูลลูกค้าในฟอร์ม
+                    if (data.customer) {
+                        document.getElementById('customer-name').value = data.customer.name || '';
+                        document.getElementById('customer-email').value = data.customer.email || '';
+                        document.getElementById('customer-phone').value = data.customer.phone || '';
+                        document.getElementById('customer-company').value = data.customer.company || '';
+                        document.getElementById('customer-address').value = data.customer.address || '';
+                        document.getElementById('customer-notes').value = data.customer.notes || '';
+
+                        // ✅ แสดงข้อมูลลูกค้าในใบเสนอราคา
+                        const setText = (id, value) => {
+                            const el = document.getElementById(id);
+                            if (el) el.textContent = value || '';
+                        };
+
+                        setText('quote-customer-name', data.customer.name);
+                        setText('quote-customer-email', data.customer.email);
+                        setText('quote-customer-phone', data.customer.phone);
+                        setText('quote-customer-company', data.customer.company);
+                        setText('quote-customer-address', data.customer.address);
+                    }
+
+                    // ✅ อัปเดตหมายเลขใบเสนอราคาบน UI
+                    document.querySelector('.quotation .font-normal').textContent = quotationNo;
+
+                    // ✅ แสดงสินค้าและใบเสนอราคา
+                    renderCart();
+                    renderQuotationItems?.();
+                    updateCartSummary();
+                    navigateTo('quotation');
+
+                } catch (err) {
+                    alert('ไม่พบใบเสนอราคานี้');
+                    console.error(err);
+                }
+            }
+
+            async function loadQuotationDropdown() {
+                const dropdown = document.getElementById('quotation-no-select');
+                if (!dropdown) return;
+
+                try {
+                    const res = await fetch('http://localhost:8000/quotation_list');
+                    if (!res.ok) throw new Error('Failed to load quotations');
+                    const list = await res.json();
+
+                    dropdown.innerHTML = '<option value="">-- เลือกใบเสนอราคา --</option>';
+                    list.forEach(qno => {
+                        const option = document.createElement('option');
+                        option.value = qno;
+                        option.textContent = qno;
+                        dropdown.appendChild(option);
+                    });
+                } catch (e) {
+                    console.error('Error loading quotations:', e);
+                }
+            }
+
+            // ฟังก์ชันแสดงรายการสินค้าในใบเสนอราคา
+            function renderQuotationItems() {
+                const quoteItems = document.getElementById('quote-items');
+                quoteItems.innerHTML = '';
+
+                cart.forEach((item, index) => {
+                    const itemTotal = item.price * item.quantity;
+                    const isLast = index === cart.length - 1;
+
+                    const noteBlock = isLast ? `
+                        <br>******************************************<br>
+                        <strong>NOTE :</strong><br>
+                        Customer need to check goods description,<br>
+                        size, quantity and required documents to match<br>
+                        with requirement before order.<br>
+                        Quotation need to be revise if which requirement<br>
+                        exclude from above detail
+                    ` : '';
+
+                    // ✅ fallback แสดง id หรือ product_id หรือ '-'
+                    const model = item.id || item.product_id || '-';
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-2 py-1 align-top">${index + 1}</td>
+                        <td class="px-2 py-1 align-top">${model}</td>
+                        <td class="px-2 py-1 align-top">
+                            ${item.name || ''}${noteBlock}
+                        </td>
+                        <td class="px-2 py-1 text-center align-top">${item.quantity || 1}</td>
+                        <td class="px-2 py-1 text-center align-top">PCS</td>
+                        <td class="px-2 py-1 text-right align-top">${item.price?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || ''}</td>
+                        <td class="px-2 py-1 text-right align-top">${itemTotal?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || ''}</td>
+                    `;
+                    quoteItems.appendChild(row);
+                });
+
+                // ✅ คำนวณยอดรวม
+                const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                const tax = subtotal * 0.07;
+                const total = subtotal + tax;
+
+                document.getElementById('quote-subtotal').textContent = subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 });
+                document.getElementById('quote-tax').textContent = tax.toLocaleString(undefined, { minimumFractionDigits: 2 });
+                document.getElementById('quote-total').textContent = total.toLocaleString(undefined, { minimumFractionDigits: 2 });
+
+                if (document.getElementById('quote-total-words')) {
+                    document.getElementById('quote-total-words').textContent = numberToWordsBaht(total);
+                }
+            }
+
+            function renderCustomerToQuotationView(customer) {
+                const setText = (id, text) => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = text || '';
+                };
+
+                setText('quote-customer-name', customer.name);
+                setText('quote-customer-email', customer.email);
+                setText('quote-customer-phone', customer.phone);
+                setText('quote-customer-company', customer.company);
+                setText('quote-customer-address', customer.address);
+            }
+
+    </script>
+</body>
+</html>
+
+
