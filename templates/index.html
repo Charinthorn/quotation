@@ -1667,7 +1667,7 @@
                 // ✅ ส่งข้อมูลทั้งหมดไปยัง backend
                 for (const item of cart) {
                     try {
-                        await fetch('http://localhost:8000/add_product', {
+                        await fetch('/add_product', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -1703,7 +1703,7 @@
                 }
 
                 try {
-                    const res = await fetch(`http://localhost:8000/quotation/${quotationNo}`);
+                    const res = await fetch(`/quotation/${quotationNo}`);
                     const data = await res.json();
 
                     // ✅ โหลดสินค้า
@@ -1754,7 +1754,7 @@
                 if (!dropdown) return;
 
                 try {
-                    const res = await fetch('http://localhost:8000/quotation_list');
+                    const res = await fetch('/quotation_list');
                     if (!res.ok) throw new Error('Failed to load quotations');
                     const list = await res.json();
 
