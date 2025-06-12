@@ -478,7 +478,7 @@
                             <div class="flex justify-between items-center">
                                 <!-- ซ้าย: โลโก้ + ชื่อบริษัท -->
                                 <div class="flex items-center gap-4">
-                                <img src="C:/Users/mwave.engineer/Documents/GitHub/Mwave-X/Product/images/m-wave.jpg" alt="M-Wave Logo" class="h-10 w-10 object-contain" />
+                                <img src="../static/images/m-wave.jpg"  alt="M-Wave Logo" class="h-10 w-10 object-contain" />
                                 <h1 class="text-2xl font-semibold">M-Wave Marketing</h1>
                                 </div>
                             </div>
@@ -659,7 +659,7 @@
                         <!-- Website + Email -->
                         <div class="flex items-start gap-3">
                             <!-- รูปโลโก้ไอคอนแบบ path -->
-                            <img src="C:/Users/mwave.engineer/Documents/GitHub/Mwave-X/Product/images/world_icon.png" alt="Globe Icon" class="h-5 w-5 mt-1 object-contain" />
+                            <img src="../static/images/world_icon.png"  alt="Globe Icon" class="h-5 w-5 mt-1 object-contain" />
                             
                             <div>
                                 <p><strong>URL:</strong> www.mwavegroup.com</p>
@@ -1667,7 +1667,7 @@
                 // ✅ ส่งข้อมูลทั้งหมดไปยัง backend
                 for (const item of cart) {
                     try {
-                        await fetch('/add_product', {
+                        await fetch('/mwave/quotation/add_product', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -1703,7 +1703,7 @@
                 }
 
                 try {
-                    const res = await fetch(`/quotation/${quotationNo}`);
+                    const res = await fetch(`/mwave/quotation/quotation/${quotationNo}`);
                     const data = await res.json();
 
                     // ✅ โหลดสินค้า
@@ -1754,7 +1754,7 @@
                 if (!dropdown) return;
 
                 try {
-                    const res = await fetch('/quotation_list');
+                    const res = await fetch('../quotation_list');
                     if (!res.ok) throw new Error('Failed to load quotations');
                     const list = await res.json();
 

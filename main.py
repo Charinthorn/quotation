@@ -9,24 +9,28 @@ import os
 
 app = FastAPI()
 
-# ✅ Enable CORS
+# ✅ CORS: แนะนำให้ใส่ domain จริงของคุณ
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # ปรับให้เหมาะสมถ้าระบุ origin ได้
+    allow_origins=["https://glotechsystem.com"],  # หรือ ["*"] ชั่วคราว
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ✅ เสิร์ฟ static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# ✅ เสิร์ฟ HTML templates
 templates = Jinja2Templates(directory="templates")
 
-# ✅ Route HTML หน้าแรก
+# ✅ เส้นทางหน้าแรก
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+#
 
-# ✅ เชื่อมกับ Google Sheets
+# ✅ เชื่อม Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 SERVICE_ACCOUNT_PATH = os.environ.get("GOOGLE_CREDS_JSON", "client_secret.json")
 
@@ -40,14 +44,14 @@ except Exception as e:
     sheet_items = None
     sheet_customers = None
 
-# ✅ POST: เพิ่มสินค้า + ลูกค้า
+# ✅ POST: เพิ่มข้อมูลสินค้าและลูกค้า
 @app.post("/add_product")
 def add_product(product: dict = Body(...)):
     try:
         if not sheet_items or not sheet_customers:
             raise Exception("Google Sheet connection not initialized")
 
-        # เพิ่มสินค้าลงชีต1
+        # เพิ่มรายการสินค้า
         item_row = [
             product.get("quotation_no"),
             product.get("category"),
@@ -58,7 +62,7 @@ def add_product(product: dict = Body(...)):
         ]
         sheet_items.append_row(item_row)
 
-        # ถ้ายังไม่มีลูกค้า → เพิ่มในชีต2
+        # ถ้ายังไม่มีลูกค้าในชีต2 → เพิ่ม
         existing_customers = sheet_customers.get_all_records()
         exists = any(row["quotation_no"] == product.get("quotation_no") for row in existing_customers)
 
@@ -75,10 +79,11 @@ def add_product(product: dict = Body(...)):
             sheet_customers.append_row(customer_row)
 
         return {"status": "success"}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ✅ GET: ดึงใบเสนอราคาตามหมายเลข
+# ✅ GET: ดึงข้อมูลใบเสนอราคาตามหมายเลข
 @app.get("/quotation/{quotation_no}")
 def get_quotation(quotation_no: str):
     try:
@@ -109,7 +114,7 @@ def get_quotation(quotation_no: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# ✅ GET: รายการ quotation_no ทั้งหมด
+# ✅ GET: ดึงรายการ quotation_no ทั้งหมด
 @app.get("/quotation_list")
 def get_quotation_list():
     try:
@@ -119,5 +124,6 @@ def get_quotation_list():
         records = sheet_items.get_all_records()
         qnos = list({row["quotation_no"] for row in records if row.get("quotation_no")})
         return sorted(qnos)
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
