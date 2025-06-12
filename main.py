@@ -1,31 +1,53 @@
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+import os
 
 app = FastAPI()
 
-# Enable CORS for all origins (for frontend JS fetch)
+# ✅ Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # ปรับให้เหมาะสมถ้าระบุ origin ได้
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# เชื่อมกับ Google Sheets
+# ✅ Serve static files and templates
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
+
+# ✅ Route HTML หน้าแรก
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
+
+# ✅ เชื่อมกับ Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name("client_secret.json", scope)
-client = gspread.authorize(creds)
+SERVICE_ACCOUNT_PATH = os.environ.get("GOOGLE_CREDS_JSON", "client_secret.json")
 
-sheet_items = client.open("QuoteVend").worksheet("ชีต1")
-sheet_customers = client.open("QuoteVend").worksheet("ชีต2")
+try:
+    creds = ServiceAccountCredentials.from_json_keyfile_name(SERVICE_ACCOUNT_PATH, scope)
+    client = gspread.authorize(creds)
+    sheet_items = client.open("QuoteVend").worksheet("ชีต1")
+    sheet_customers = client.open("QuoteVend").worksheet("ชีต2")
+except Exception as e:
+    print("❌ Failed to connect to Google Sheets:", e)
+    sheet_items = None
+    sheet_customers = None
 
-# POST: เพิ่มสินค้า + ข้อมูลลูกค้า (ถ้ายังไม่มี)
+# ✅ POST: เพิ่มสินค้า + ลูกค้า
 @app.post("/add_product")
 def add_product(product: dict = Body(...)):
     try:
+        if not sheet_items or not sheet_customers:
+            raise Exception("Google Sheet connection not initialized")
+
         # เพิ่มสินค้าลงชีต1
         item_row = [
             product.get("quotation_no"),
@@ -37,7 +59,7 @@ def add_product(product: dict = Body(...)):
         ]
         sheet_items.append_row(item_row)
 
-        # ตรวจว่าข้อมูลลูกค้ามีแล้วหรือยังในชีต2
+        # ถ้ายังไม่มีลูกค้า → เพิ่มในชีต2
         existing_customers = sheet_customers.get_all_records()
         exists = any(row["quotation_no"] == product.get("quotation_no") for row in existing_customers)
 
@@ -57,11 +79,13 @@ def add_product(product: dict = Body(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# GET: ดึงข้อมูลใบเสนอราคาทั้งสินค้า + ลูกค้า
+# ✅ GET: ดึงใบเสนอราคาตามหมายเลข
 @app.get("/quotation/{quotation_no}")
 def get_quotation(quotation_no: str):
     try:
+        if not sheet_items or not sheet_customers:
+            raise Exception("Google Sheet connection not initialized")
+
         items = sheet_items.get_all_records()
         matched_items = [row for row in items if row.get("quotation_no") == quotation_no]
 
@@ -86,10 +110,15 @@ def get_quotation(quotation_no: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-# GET: รายการ quotation_no ทั้งหมด (ไม่ซ้ำ)
+# ✅ GET: รายการ quotation_no ทั้งหมด
 @app.get("/quotation_list")
 def get_quotation_list():
-    records = sheet_items.get_all_records()
-    qnos = list({row["quotation_no"] for row in records if row.get("quotation_no")})
-    return sorted(qnos)
+    try:
+        if not sheet_items:
+            raise Exception("Google Sheet connection not initialized")
+
+        records = sheet_items.get_all_records()
+        qnos = list({row["quotation_no"] for row in records if row.get("quotation_no")})
+        return sorted(qnos)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
