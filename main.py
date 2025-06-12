@@ -18,8 +18,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Serve static files and templates
-app.mount("/static", StaticFiles(directory="static"), name="static")
+
 templates = Jinja2Templates(directory="templates")
 
 # ✅ Route HTML หน้าแรก
