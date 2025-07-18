@@ -1,0 +1,3406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuoteVend - Easy Quotation Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .app-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .sidebar {
+            background: linear-gradient(180deg, #2c3e50, #1a2533);
+            border-radius: 16px 0 0 16px;
+        }
+        .nav-item {
+            transition: all 0.2s ease;
+            border-left: 4px solid transparent;
+        }
+        .nav-item:hover {
+            background-color: rgba(255,255,255,0.1);
+        }
+        .nav-item.active {
+            background-color: rgba(255,255,255,0.15);
+            border-left: 4px solid #3498db;
+        }
+        .content-area {
+            height: calc(100vh - 2rem);
+            overflow-y: auto;
+        }
+        .category-card {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .category-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(0,0,0,0.1);
+            border-color: #3498db;
+        }
+        .product-card {
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+        }
+        .product-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        }
+        .product-card.selected {
+            border-color: #2ecc71;
+            background-color: rgba(46, 204, 113, 0.05);
+        }
+        .cart-item {
+            transition: all 0.2s ease;
+        }
+        .cart-item:hover {
+            background-color: rgba(0,0,0,0.02);
+        }
+        .quantity-control {
+            display: flex;
+            align-items: center;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #e2e8f0;
+        }
+        .quantity-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f7fafc;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        .quantity-btn:hover {
+            background: #edf2f7;
+        }
+        .quantity-input {
+            width: 40px;
+            text-align: center;
+            border: none;
+            font-weight: 500;
+        }
+        .quantity-input:focus {
+            outline: none;
+        }
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            color: #64748b;
+        }
+        .breadcrumb-item {
+            cursor: pointer;
+        }
+        .breadcrumb-item:hover {
+            color: #3498db;
+            text-decoration: underline;
+        }
+        .breadcrumb-separator {
+            margin: 0 8px;
+        }
+        .search-bar {
+            transition: all 0.3s ease;
+        }
+        .search-bar:focus {
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+        .badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background-color: #e74c3c;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .tab {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .tab.active {
+            color: #3498db;
+            border-bottom: 3px solid #3498db;
+        }
+        .tab:hover:not(.active) {
+            color: #2980b9;
+            border-bottom: 3px solid #e2e8f0;
+        }
+        .quotation {
+            background-color: white;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px;
+        }
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 16px;
+        }
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+        .step-indicator::before {
+            content: '';
+            position: absolute;
+            top: 15px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e2e8f0;
+            z-index: 1;
+        }
+        .step {
+            position: relative;
+            z-index: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .step-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #cbd5e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+        .step.active .step-circle {
+            background: #3498db;
+            border-color: #3498db;
+            color: white;
+        }
+        .step.completed .step-circle {
+            background: #2ecc71;
+            border-color: #2ecc71;
+            color: white;
+        }
+        .step-label {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .step.active .step-label {
+            color: #3498db;
+            font-weight: 600;
+        }
+        .step.completed .step-label {
+            color: #2ecc71;
+            font-weight: 600;
+        }
+        body.print-mode td {
+            font-size: 10px !important;
+            padding: 2px 4px !important;
+        }
+
+        body.print-mode th {
+            font-size: 10px !important;
+            padding: 3px 4px !important;
+        }
+
+        body.print-mode select,
+        body.print-mode .dwg-select {
+            font-size: 9px !important;
+            padding: 1px 2px !important;
+        }
+        @media print {
+            .quotation-page {
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                height: 277mm;
+                box-sizing: border-box;
+                page-break-after: always;
+                padding: 2mm 2mm;
+            }
+            .quotation-page:last-child {
+                page-break-after: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="min-h-screen bg-gray-100 p-4">
+        <div class="app-container w-full max-w-7xl mx-auto flex flex-col md:flex-row overflow-hidden">
+            <!-- Sidebar Navigation -->
+            <div class="sidebar w-full md:w-64 bg-gray-800 text-white p-4 md:p-6">
+                <div class="flex items-center justify-between md:justify-start mb-8">
+                    <h1 class="text-2xl font-bold">QuoteVend</h1>
+                    <button id="mobile-menu-toggle" class="md:hidden">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <div id="nav-items" class="hidden md:block">
+                    <div class="mb-6">
+                        <div class="text-sm text-gray-400 mb-2">NAVIGATION</div>
+                        <div id="nav-categories" class="nav-item active flex items-center p-3 rounded cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                            </svg>
+                            <span>Categories</span>
+                        </div>
+                        <div id="nav-products" class="nav-item flex items-center p-3 rounded cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                            </svg>
+                            <span>Products</span>
+                        </div>
+                        <div id="nav-cart" class="nav-item flex items-center p-3 rounded cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <span>Cart</span>
+                            <div id="cart-badge" class="ml-2 bg-blue-500 text-xs rounded-full w-5 h-5 flex items-center justify-center">0</div>
+                        </div>
+                        <div id="nav-customer" class="nav-item flex items-center p-3 rounded cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span>Customer</span>
+                        </div>
+                        <div id="nav-quotation" class="nav-item flex items-center p-3 rounded cursor-pointer">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span>Quotation</span>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <div class="text-sm text-gray-400 mb-2">SUMMARY</div>
+                        <div class="bg-gray-700 rounded-lg p-4">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-gray-300">Items:</span>
+                                <span id="summary-items" class="font-medium">0</span>
+                            </div>
+                            <div class="flex justify-between mb-4">
+                                <span class="text-gray-300">Subtotal:</span>
+                                <span id="summary-subtotal" class="font-medium">฿0.00</span>
+                            </div>
+                            <button id="generate-quote-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                Generate Quote
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="p-4">
+                        <a href="/login" class="block w-full text-center bg-gray-700 hover:bg-gray-600 text-white py-2 rounded">
+                         Admin Login
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content Area -->
+            <div class="content-area flex-1 bg-white p-4 md:p-8 overflow-y-auto">
+                <!-- Progress Indicator -->
+                <div class="step-indicator mb-8">
+                    <div id="step-1" class="step active">
+                        <div class="step-circle">1</div>
+                        <div class="step-label">Categories</div>
+                    </div>
+                    <div id="step-2" class="step">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">Products</div>
+                    </div>
+                    <div id="step-3" class="step">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">Cart</div>
+                    </div>
+                    <div id="step-4" class="step">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">Customer</div>
+                    </div>
+                    <div id="step-5" class="step">
+                        <div class="step-circle">5</div>
+                        <div class="step-label">Quotation</div>
+                    </div>
+                </div>
+                
+                <!-- Breadcrumb Navigation -->
+                <div class="breadcrumb mb-6">
+                    <span id="breadcrumb-home" class="breadcrumb-item">Home</span>
+                    <span id="breadcrumb-separator-1" class="breadcrumb-separator hidden">›</span>
+                    <span id="breadcrumb-category" class="breadcrumb-item hidden"></span>
+                    <span id="breadcrumb-separator-2" class="breadcrumb-separator hidden">›</span>
+                    <span id="breadcrumb-product" class="breadcrumb-item hidden"></span>
+                </div>
+                
+                <!-- Search and Filter -->
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                    <h2 id="content-title" class="text-2xl font-bold mb-4 md:mb-0">Product Categories</h2>
+                    <div class="w-full md:w-auto flex">
+                        <div class="relative flex-1 md:w-64">
+                            <input id="search-input" type="text" placeholder="Search..." class="search-bar w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 absolute left-3 top-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Categories View -->
+                <div id="categories-view">
+                    <div class="category-grid">
+                        <!-- Categories will be dynamically inserted here -->
+                    </div>
+                </div>
+                
+                <!-- Products View -->
+                <div id="products-view" class="hidden">
+                    <div class="product-grid">
+                        <!-- Products will be dynamically inserted here -->
+                    </div>
+
+                    <div id="pagination-controls" class="flex justify-between items-center mt-4">
+                        <button id="prev-page-btn" class="border rounded px-4 py-1">Previous</button>
+                        <span id="pagination-info">Page 1 of ?</span>
+                        <button id="next-page-btn" class="border rounded px-4 py-1">Next</button>
+                    </div>
+                </div>
+
+                <!-- Cart View -->
+                <div id="cart-view" class="hidden">
+                    <div class="bg-white rounded-lg">
+                        <div id="cart-items" class="divide-y divide-gray-200">
+                            <!-- Cart items will be dynamically inserted here -->
+                            <div id="empty-cart-message" class="py-8 text-center text-gray-500">
+                                Your cart is empty
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 border-t border-gray-200 pt-6">
+                            <div class="flex justify-between mb-2">
+                                <span class="font-medium">Subtotal</span>
+                                <span id="cart-subtotal" class="font-medium">฿0.00</span>
+                            </div>
+                            <div class="flex justify-between mb-2 text-sm text-gray-500">
+                                <span>Tax (10%)</span>
+                                <span id="cart-tax">฿0.00</span>
+                            </div>
+                            <div class="flex justify-between font-bold text-lg mt-4">
+                                <span>Total</span>
+                                <span id="cart-total">฿0.00</span>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 flex justify-between">
+                            <button id="continue-shopping" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                                Continue Shopping
+                            </button>
+                            <button id="proceed-to-customer" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                Proceed to Customer Info
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Customer Info View -->
+                <div id="customer-view" class="hidden">
+                    <div class="bg-white rounded-lg">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Quotation No.</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="quotation-auto" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Auto-generate on click" readonly>
+                                    <button type="button" onclick="generateQuotationNo()" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition">Add</button>
+                                </div>
+                            </div>
+                            <!-- New: Real-time company filter -->
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">🔎 Filter Company</label>
+                                <input type="text" id="company-filter" placeholder="Search company..." class="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+                            </div>
+                            <!-- Customer Info -->
+                            <div class="md:col-span-2 grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                                    <input type="text" id="customer-company" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter company name">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Customer Name *</label>
+                                    <input type="text" id="customer-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter customer name">
+                                </div>
+                                <div>
+                                    <label for="contact-dropdown" class="text-sm font-medium text-gray-700 mb-1">Contact Person (Customer)</label>
+                                    <select id="contact-dropdown" class="border px-2 py-1 rounded w-full mb-2" style="display: none;">
+                                    <option value="">-- Select Contact --</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                                    <input type="tel" id="customer-phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter phone number">
+                                </div>
+                                <div class="md:col-start-2">
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                                    <input type="email" id="customer-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter email address">
+                                </div>
+                            </div>
+                                
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Customer Ref.</label>
+                                <input type="text" id="customer-ref" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g. CMO Deflector cone for AD 14&quot;">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Enquiry Ref.</label>
+                                <input type="text" id="enquiry-ref" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g. TK2408-0021">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                <textarea id="customer-address" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter address"></textarea>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                                <textarea id="customer-notes" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter any additional notes"></textarea>
+                            </div>
+
+                             <!-- Sales Info -->
+                            <div class="md:col-span-2">
+                                <h5 class="text-md font-semibold text-blue-600 mt-4 mb-2">Sales Information</h5>
+                            </div>
+                            <div class="md:col-span-2 grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">🔎 Filter Sales Person</label>
+                                    <input id="sales-filter" type="text" placeholder="Type to search..." class="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700">🔎 Filter Contact Person</label>
+                                    <input id="contact-filter" type="text" placeholder="Type to search..." class="w-full px-4 py-2 border border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Sales Person</label>
+                                <input type="text" id="sales-person" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter sales person name">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Contact Person</label>
+                                <input type="text" id="sales-contact" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter contact person">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Sales Mobile</label>
+                                <input type="text" id="sales-mobile" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter sale mobile number">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Contact Tel</label>
+                                <input type="text" id="contact-tel" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter contact tel">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Sales Email</label>
+                                <input type="email" id="sales-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter sales email">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
+                                <input type="email" id="contact-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter contact email">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Delivery Time</label>
+                                <input type="text" id="delivery-time" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g. 4-5 WORKING WEEKS AFTER RECEIVED ACKNOWLEDGEMENT">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Delivery Term</label>
+                                <input type="text" id="delivery-term" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g. DDP AT SITE, Rayong Thailand">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Payment Term</label>
+                                <input type="text" id="payment-term" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g. CREDIT 30 DAYS">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Quotation Validity</label>
+                                <input type="text" id="quotation-validity" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="e.g. 7 DAYS">
+                            </div>
+                        </div>
+
+                        <div class="mt-8 flex justify-between">
+                            <button id="back-to-cart" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                                Back to Cart
+                            </button>
+                            <button id="generate-quotation" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                Generate Quotation
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quotation View -->
+                <div id="quotation-view" class="hidden">
+                        <div class="mb-4 flex flex-wrap items-center justify-between gap-4">
+                            <!-- ✅ ฝั่งซ้าย: Upload Drawing -->
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-sm font-medium text-gray-700 whitespace-nowrap">
+                                Upload PDF Drawing
+                                </span>
+
+                                <!-- ✅ input + button ชิดกัน -->
+                                <div class="flex items-center gap-1">
+                                <input type="file" id="drawingPdfInput" accept=".pdf" multiple class="text-sm" />
+                                <button id="uploadPdfBtn"
+                                    class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 text-sm">
+                                    Upload
+                                </button>
+                                </div>
+                            </div>
+
+                            <!-- ✅ ฝั่งขวา: Filters -->
+                            <div class="flex items-center gap-2 flex-wrap justify-end mb-2">
+                                <select id="quotation-status-filter" class="px-3 py-1 border border-gray-300 rounded text-sm">
+                                <option value="">-- All Status --</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Approve">Approve</option>
+                                <option value="Disapprove">Disapprove</option>
+                                </select>
+
+                                <select id="quotation-no-select" class="px-3 py-1 border border-gray-300 rounded text-sm">
+                                <option value="">-- เลือกใบเสนอราคา --</option>
+                                </select>
+
+                                <select id="quotation-rev-select" class="px-3 py-1 border border-gray-300 rounded text-sm">
+                                <option value="">-- Revision --</option>
+                                </select>
+
+                                <button onclick="fetchQuotation()"
+                                class="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600 transition text-sm">
+                                ค้นหา
+                                </button>
+                            </div>
+                        </div>
+
+                    <div class="quotation p-8 rounded-lg">
+                        <!-- Header logo and company name -->
+                        <div id="quotation-single-page" style="display: none;">
+                        <div class="quotation-body">
+                        <div class="mb-4">
+                            <div class="flex justify-between items-center">
+                                <!-- ซ้าย: โลโก้ + ชื่อบริษัท -->
+                                <div class="flex items-center gap-4">
+                                <img src="/images/m-wave.jpg" alt="M-Wave Logo" class="h-10 w-10 object-contain" />
+                                <h1 class="text-2xl font-semibold">Mwave</h1>
+                                </div>
+                            </div>
+
+                            <!-- เส้นขีด -->
+                            <hr class="my-3 border-t border-gray-400 w-[800px] mx-auto" />
+                        </div>
+                        
+                        <!-- ส่วนหัว: Quotation + กล่องใบเสนอราคา -->
+                        <div class="flex justify-between items-start mb-6">
+                            <!-- ซ้าย: หัวเรื่องและที่อยู่บริษัท -->
+                            <div class="text-sm leading-6">
+                                <h2 class="text-lg font-bold mb-1">Quotation</h2>
+                                <p class="text-sm font-semibold" id="quote-customer-company"></p>
+                                <p class="text-sm pt-3"id="quote-customer-address"></p>
+                            </div>
+
+                            <!-- ขวา: Page + Quotation No. -->
+                            <!-- Container ทั้งหมดจัดให้อยู่กึ่งกลาง -->
+                            <div class="text-sm flex flex-col items-center space-y-2">
+                            <p class="text-center"><strong>Page :</strong> 1 of 1</p>
+                            <p class="text-center">For further inquiries, please specify :</p>
+
+                            <div class="w-[300px] bg-blue-100 rounded-lg p-4 border border-blue-500 inline-block shadow-sm text-left">
+                                <p class="font-bold">
+                                <span>Quotation No.:</span>
+                                <span class="ml-2 font-normal" id="quote-no">QT2408-0076 Rev. 1</span>
+                                </p>
+                                <p class="font-bold">
+                                <span>Issued Date :</span>
+                                <span class="ml-2 font-normal" id="quote-date"></span>
+                                </p>
+                            </div>
+                            </div>
+                        </div>
+
+                        <!-- ข้อมูลลูกค้าและฝ่ายขาย -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-x-2 text-xs leading-5 mb-2">
+                            <!-- ข้อมูลลูกค้า -->
+                            <div class="md:col-span-2">
+                                <p><strong>Attn :</strong> <span id="quote-customer-name">K.Napakorn Klaimee</span></p>
+                                <p><strong>Tel :</strong> <span id="quote-customer-phone">038-974-173 064-569-7779</span></p>
+                                <p><strong>Email :</strong> <span id="quote-customer-email">napakorn.k@wha-gc.com</span></p>
+                                <p><strong>Customer Ref. :</strong> <span id="quote-customer-ref"></span></p>
+                                <p><strong>Enquiry Ref. :</strong> <span id="quote-enquiry-ref"></span></p>
+                                <p style="font-size: 10px; line-height: 1.7;">
+                                With reference to your enquiry, we are pleased to offer as below for your consideration
+                                </p>
+                            </div>
+
+                            <!-- ข้อมูลฝ่ายขาย -->
+                            <div class="md:col-span-1 md:justify-self-start -ml-12">
+                                <p><strong>Sales Person :</strong> <span id="quote-sales-person"></span></p>
+                                <p><strong>Mobile :</strong> <span id="quote-sales-mobile"></span></p>
+                                <p><strong>E-Mail :</strong> <span id="quote-sales-email"></span></p>
+                                <p><strong>Contact :</strong> <span id="quote-sales-contact"></span></p>
+                                <p><strong>Tel :</strong> <span id="quote-contact-tel"></span></p>
+                                <p><strong>E-Mail :</strong> <span id="quote-contact-email"></span></p>
+                            </div>
+                        </div>
+
+                        <!-- ตารางรายการสินค้า -->
+                        <table class="w-full border-collapse text-xs mt-4">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                <th class="border-b border-black px-2 py-1 align-top">Item</th>
+                                <th class="border-b border-black px-2 py-1 align-top">Model</th>
+                                <th class="border-b border-black px-2 py-1 align-top">Description</th>
+                                <th class="border-b border-black px-2 py-1 align-top">Qty.</th>
+                                <th class="border-b border-black px-2 py-1 align-top">Unit</th>
+                                <th class="border-b border-black px-2 py-1 align-top">Unit Price</th>
+                                <th class="border-b border-black px-2 py-1 align-top">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quote-items">
+                                <!-- แถวสินค้าจะถูกเติมด้วย JavaScript -->
+                            </tbody>
+                        </table>
+                        </div>
+
+                        <div class="quotation-footer">
+                        <!-- เส้นขีดบน -->
+                        <hr class="my-1 border-t border-t-[0.2px] border-gray-500  mx-auto" />
+
+                        <!-- เงื่อนไข -->
+                        <div class="text-xs space-y-1">
+                        <p><strong>Delivery Time :</strong> <span id="quote-delivery-time"></span></p>
+                        <p><strong>Delivery Term :</strong> <span id="quote-delivery-term"></span></p>
+                        <p><strong>Payment Term :</strong> <span id="quote-payment-term"></span></p>
+                        <p><strong>Quotation Validity :</strong> <span id="quote-quotation-validity"></span></p>
+                        </div>
+
+                        <!-- เส้นขีดล่าง -->
+                        <hr class="border-t border-black my-1" />
+
+                        <!-- บรรทัดเดียว: จำนวนเงินตัวอักษร + ข้อความท้าย + สรุปราคา -->
+                        <div class="flex justify-between items-start text-xs mt-1 gap-4">
+                        <!-- ฝั่งซ้าย: ข้อความรวม -->
+                        <div class="flex flex-col justify-start max-w-[65%]">
+                            <p id="quote-total-words" class="italic text-xs">
+                            <!-- คำแปลงจากยอดรวมจะมาแสดงตรงนี้ -->
+                            </p>
+                            <p class="mt-10"> <!-- ลด margin-top จาก 12 เป็น 8 เพื่อประหยัดพื้นที่ -->
+                            Kindly go through the quotation and we look forward to your favorable reply.
+                            </p>
+                        </div>
+
+                        <!-- ฝั่งขวา: สรุปราคา -->
+                        <div class="space-y-1 text-right min-w-[220px] text-xs">
+                            <div class="pb-2 flex justify-between">
+                            <span class="font-semibold">Total</span>
+                            <span id="quote-subtotal" class="ml-2">0.00</span>
+                            </div>
+                            <div class="pb-2 flex justify-between">
+                            <span class="font-semibold">VAT (7%)</span>
+                            <span id="quote-tax" class="ml-2">0.00</span>
+                            </div>
+                            <div class="flex justify-between font-bold">
+                            <span>Total Amount</span>
+                            <span id="quote-total" class="ml-2">0.00</span>
+                            </div>
+                        </div>
+                        </div>
+
+                        <p class="mt-2 font-bold text-xs">Best Regards,</p>
+
+                        <!-- ลายเซ็นด้านขวา -->
+                        <div class="my-1 flex justify-end text-xs">
+                        <div class="text-center">
+                            <!-- ชื่ออยู่ด้านบน -->
+                            <p class="font-bold">DUSADEE.MWAVE</p>
+
+                            <!-- เส้นใต้ชื่อ -->
+                            <div class="w-[160px] h-[1px] bg-black my-1 mx-auto"></div>
+
+                            <!-- รายละเอียดลายเซ็น -->
+                            <p class="font-semibold">Authorized Signature</p>
+                            <p class="mt-1">Date : <strong id="signature-date"></strong></p>
+                        </div>
+                        </div>
+
+                        <!-- เส้นคั่นด้านบน -->
+                        <hr class="my-4 border-t border-gray-300" />
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-800">
+                        <!-- Nonthaburi Office -->
+                        <div class="flex items-start gap-2">
+                            <img src="/images/location-logo.jpg" alt="Location Icon" class="h-4 w-4 mt-0.5 object-contain" />
+                            <div>
+                            <p><strong>Nonthaburi (Head) Office:</strong> 73/4</p>
+                            <p>Moo. 1 Bangkruay-Sainoi Rd.,</p>
+                            <p style="white-space: nowrap;">Banglane, Bangyai, Nonthaburi 11140</p>
+                            <p>Phone : +66 2147 4747</p>
+                            <p>Fax : +66 2921 5402</p>
+                            </div>
+                        </div>
+
+                        <!-- Rayong Office -->
+                        <div class="flex items-start gap-2 md:justify-self-center">
+                            <img src="/images/location-logo.jpg" alt="Location Icon" class="h-4 w-4 mt-0.5 object-contain" />
+                            <div>
+                            <p><strong>Rayong Office:</strong> 49/19</p>
+                            <p>Sukhumvit Rd., Nern-Pra,</p>
+                            <p>Muang, Rayong 21150</p>
+                            <p>Phone : +66 3894 7271</p>
+                            <p>Fax : +66 3894 7275</p>
+                            </div>
+                        </div>
+
+                        <!-- Website + Email -->
+                        <div class="flex items-start gap-2">
+                            <img src="/images/world_icon.png" alt="Globe Icon" class="h-4 w-4 mt-0.5 object-contain" />
+                            <div>
+                            <p><strong>URL:</strong> www.mwavegroup.com</p>
+                            <p><strong>Email:</strong> sales@mwavegroup.com</p>
+                            </div>
+                        </div>
+                        </div>
+                        </div>
+
+                        </div>
+
+                        <!-- ✅ สำหรับใบเสนอราคาหลายหน้า -->
+                        <div id="quotation-print-area" style="display: none;"></div>
+                         
+                        <!-- ปุ่มด้านล่างตาราง -->
+                        <div class="mt-6 flex justify-end gap-4">
+                        <button id="edit-quote" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+                            Edit Quote
+                        </button>
+                        <button id="print-quote" class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                            Print Quote
+                        </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        
+        let products = [];      // โหลดจาก /basic_products
+        let categories = [];    // โหลดจาก /categories
+        let cart = [];          // ตะกร้าสินค้า
+        let productCounts = {};
+        let drawingFiles = [];
+        let drawingSelections = [];
+
+        // 🔠 การจัดการ UI state
+        let currentState = 'categories';  // current tab/view
+        let selectedCategory = null;      // หมวดหมู่ที่เลือก
+        let searchTerm = '';              // คำค้นหาปัจจุบัน
+
+        // 📌 DOM element mapping
+        const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
+        const navItems = document.getElementById('nav-items');
+        const navCategories = document.getElementById('nav-categories');
+        const navProducts = document.getElementById('nav-products');
+        const nextPageBtn = document.getElementById('next-page-btn');
+
+        const navCart = document.getElementById('nav-cart');
+        const navCustomer = document.getElementById('nav-customer');
+        const navQuotation = document.getElementById('nav-quotation');
+
+        const categoriesView = document.getElementById('categories-view');
+        const productsView = document.getElementById('products-view');
+        const cartView = document.getElementById('cart-view');
+        const customerView = document.getElementById('customer-view');
+        const quotationView = document.getElementById('quotation-view');
+
+        const contentTitle = document.getElementById('content-title');
+        const searchInput = document.getElementById('search-input');
+
+        const breadcrumbHome = document.getElementById('breadcrumb-home');
+        const breadcrumbCategory = document.getElementById('breadcrumb-category');
+        const breadcrumbProduct = document.getElementById('breadcrumb-product');
+        const breadcrumbSeparator1 = document.getElementById('breadcrumb-separator-1');
+        const breadcrumbSeparator2 = document.getElementById('breadcrumb-separator-2');
+
+        const cartBadge = document.getElementById('cart-badge');
+        const summaryItems = document.getElementById('summary-items');
+        const summarySubtotal = document.getElementById('summary-subtotal');
+        const generateQuoteBtn = document.getElementById('generate-quote-btn');
+
+        const cartSubtotal = document.getElementById('cart-subtotal');
+        const cartTax = document.getElementById('cart-tax');
+        const cartTotal = document.getElementById('cart-total');
+        const emptyCartMessage = document.getElementById('empty-cart-message');
+
+        const continueShoppingBtn = document.getElementById('continue-shopping');
+        const proceedToCustomerBtn = document.getElementById('proceed-to-customer');
+
+        const backToCartBtn = document.getElementById('back-to-cart');
+        const generateQuotationBtn = document.getElementById('generate-quotation');
+
+        const editQuoteBtn = document.getElementById('edit-quote');
+        const printQuoteBtn = document.getElementById('print-quote');
+
+        // 🔁 Quotation steps
+        const step1 = document.getElementById('step-1');
+        const step2 = document.getElementById('step-2');
+        const step3 = document.getElementById('step-3');
+        const step4 = document.getElementById('step-4');
+        const step5 = document.getElementById('step-5');
+
+        let currentPage = 1;
+        let totalPages = 1; // ตั้งค่าเมื่อโหลดข้อมูลครั้งแรก
+        const pageSize = 50;
+
+        async function loadPage(category, page) {
+            const isLinedPipe = category === 'Lined Pipe';
+            const size = isLinedPipe ? 100000 : pageSize;  
+            const res = await fetch(`http://localhost:3000/basic_products?page=1&size=${size}&category=${encodeURIComponent(category)}`);
+            if (!res.ok) {
+                console.error("❌ Failed to load page");
+                return;
+            }
+            const data = await res.json();
+            products = data.items || [];
+
+            // ✅ เฉพาะ Lined Pipe: แปลง sub_category จาก product_id
+            if (isLinedPipe) {
+                products = products.map(p => {
+                    if (p.product_id) {
+                        const subcat = getPipeSubCategoryFromId(p.product_id);
+                        if (subcat) {
+                            p.sub_category = subcat;
+                            return p;
+                        }
+                        return null;
+                    }
+                    return p;
+                }).filter(Boolean);
+            }
+
+            currentPage = page;
+            renderProducts();
+            updatePaginationUI();
+        }
+
+        function getPipeSubCategoryFromId(productId) {
+            const id = (productId || '').toUpperCase();
+
+            const map = {
+                'PIPE': ['LPX'],
+                'SPACERS': ['SFX', 'SGX', 'SHX'],
+                'INCLINED SPACER': ['ISX'],
+                'ELBOWS': ['ETX', 'EFX', 'ESX', 'ENX'],
+                'TEES': ['TOX', 'TTX'],
+                'LATERAL TEES': ['LTX'],
+                'CROSSES': ['COX', 'CTX'],
+                'INSTRUMENT-TEES': ['ITX'],
+                'REDUCERS': ['RKA', 'RKB', 'RKC', 'RCO', 'RCT', 'REO', 'RET', 'SAX', 'SBX', 'BAX', 'BBX'],
+                'BLIND FLANGES': ['BFX'],
+                'EXPANSION JOINTS': ['EJT', 'EJH', 'EJF', 'SAO', 'SAT', 'SBO', 'SBT', 'SOO', 'SOT'],
+                'VACUUM EXPANSION JOINT': ['VEJ'],
+                'NOZZLE LINERS': ['NLX'],
+                'DIP PIPE': ['DCW', 'DCS', 'DAW'],
+                'HOSE': ['HSX', 'HAX'],
+                'SPIRAL TUBING': ['STX', 'STF', 'STS'],
+                'AUXILIARY FLANGES': ['AFX'],
+                'ACCESSORIES': ['ASW', 'ASS']
+            };
+
+            for (const [type, prefixes] of Object.entries(map)) {
+                if (prefixes.some(prefix => id.startsWith(prefix))) {
+                    return type;
+                }
+            }
+
+            return null; // ❌ ไม่ match → ไม่แสดง
+        }
+
+        function getPipeStandardFromId(productId) {
+            const id = (productId || '').toUpperCase();
+
+            // ตรวจสอบว่ามีความยาวพอถึงตำแหน่งที่ 4 หรือไม่
+            if (id.length < 4) return 'JIS';
+
+            const digit = id[3]; // ตำแหน่งที่ 4 (index 3)
+
+            if (['1', '2', '3', '4'].includes(digit)) {
+                return 'DIN';
+            }
+            if (['5', '6'].includes(digit)) {
+                return 'ANSI';
+            }
+            if (digit === '0') {
+                return 'OTHER';
+            }
+
+            return 'JIS'; // fallback
+        }
+
+        function getPipeSubtypeFromId(productId) {
+            const id = (productId || '').toUpperCase();
+
+            // ตรวจว่าความยาวพอถึงตำแหน่งที่ 4 ไหม
+            if (id.length < 4) return null;
+
+            const digit = id[3]; // ตำแหน่งที่ 4 (index 3)
+
+            switch (digit) {
+                case '1': return 'PN10';
+                case '2': return 'PN16';
+                case '3': return 'PN25';
+                case '4': return 'PN40';
+                case '5': return '150LB';
+                case '6': return '300LB';
+                default: return null;
+            }
+        }
+
+        const spacerLengthLimits = {
+            SFX: { "200": [10,20], "150": [10,20], "100": [10,20], "080": [10,20], "050": [10,20], "040": [10,20], "025": [10,20], "020": [10,20] },
+            SGX: { "200": [20,80], "150": [20,80], "100": [15,70], "080": [15,70], "050": [15,60], "040": [15,60], "025": [15,60], "020": [15,60] },
+            SHX: { "200": [80,200], "150": [80,150], "100": [70,125], "080": [70,125], "050": [60,100], "040": [60,100], "025": [60,100], "020": [60,100] }
+            // pipe
+        };
+
+        function extractPipeCode(productId) {
+            const match = String(productId).match(/XX(\d{3})/i);
+            return match ? match[1] : null;
+        }
+
+        const pipePriceByCode = {
+            "200": (l) => 47.1 * l + 14900,
+            "150": (l) => 19.2 * l + 7042,
+            "100": (l) => 11.7 * l + 2070,
+            "080": (l) => 8.3 * l + 1321,
+            "050": (l) => 7.1 * l + 1194,
+            "040": (l) => 4.4 * l + 1879,
+            "025": (l) => 2.1 * l + 1309,
+            "020": (l) => 2.0 * l + 1296
+        };
+
+        function calculatePipePrice(productId, length) {
+            const code = extractPipeCode(productId);
+            const calcFn = pipePriceByCode[code];
+            if (!calcFn) return 0;
+            return calcFn(length);
+        }
+
+        function getSpacerLengthLimit(productId) {
+            const id = typeof productId === 'string' ? productId.toUpperCase() : '';
+            const form = id.startsWith('SFX') ? 'SFX' : id.startsWith('SGX') ? 'SGX' : id.startsWith('SHX') ? 'SHX' : null;
+            const size = id.substring(9, 12); // ex: COX00FFFX100050 → 100
+
+            if (!form || !size) return null;
+            const range = spacerLengthLimits[form]?.[size];
+            return range ? { min: range[0], max: range[1] } : null;
+        }
+
+        function updatePaginationUI() {
+            document.getElementById('pagination-info').textContent = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('prev-page-btn').disabled = currentPage === 1;
+            document.getElementById('next-page-btn').disabled = currentPage === totalPages;
+        }
+
+        // Event handlers
+        document.getElementById('prev-page-btn').addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                loadPage(selectedCategory, currentPage);
+            }
+        });
+
+        document.getElementById('next-page-btn').addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadPage(selectedCategory, currentPage);
+            }
+        });
+        
+        async function onCategorySelected(name) {
+            selectedCategory = name;
+            currentPage = 1;
+            await loadPage(selectedCategory, currentPage);
+            navigateTo('products');
+        }
+
+        async function init() {
+            try {
+                // 📦 โหลดหมวดหมู่จาก FastAPI
+                const resCat = await fetch("http://localhost:3000/categories");
+                if (!resCat.ok) throw new Error("Cannot fetch categories");
+                categories = await resCat.json();
+
+                // 📦 โหลดจำนวนสินค้าต่อหมวด
+                const resCount = await fetch("http://localhost:3000/product_counts_by_category");
+                if (!resCount.ok) throw new Error("Cannot fetch product counts");
+                productCounts = await resCount.json();
+
+                // แสดงหมวดหมู่
+                renderCategories();
+                updateCartSummary();
+
+            } catch (err) {
+                console.error("❌ Failed to load data from server:", err);
+                categories = [];
+                productCounts = {};
+                renderCategories();
+                updateCartSummary();
+            }
+
+            // ✅ Mobile menu toggle
+            mobileMenuToggle.addEventListener('click', () => {
+                navItems.classList.toggle('hidden');
+            });
+
+            // ✅ Navigation
+            navCategories.addEventListener('click', () => navigateTo('categories'));
+            navProducts.addEventListener('click', () => {
+                if (selectedCategory) {
+                    navigateTo('products');
+                } else {
+                    navigateTo('categories');
+                }
+            });
+            navCart.addEventListener('click', () => navigateTo('cart'));
+            navCustomer.addEventListener('click', () => {
+                if (cart.length > 0) {
+                    navigateTo('customer');
+                } else {
+                    alert('Please add items to your cart first');
+                }
+            });
+            navQuotation.addEventListener('click', () => navigateTo('quotation'));
+
+            // ✅ Load revisions when quotation number is selected
+            document.getElementById('quotation-no-select')?.addEventListener('change', async (e) => {
+                const quotationNo = e.target.value?.trim();
+                const revSelect = document.getElementById('quotation-rev-select');
+                if (!revSelect) return; // ✅ ป้องกัน error หาก element ไม่เจอ
+
+                revSelect.innerHTML = `<option value="">-- Revision --</option>`;
+
+                if (!quotationNo) return;
+
+                try {
+                    const res = await fetch(`http://localhost:3000/revisions/${quotationNo}`);
+                    if (!res.ok) throw new Error("ไม่สามารถโหลด revision");
+
+                    const revisions = await res.json(); // เช่น [0,1,2]
+                    revisions.forEach(r => {
+                        const opt = document.createElement('option');
+                        opt.value = r;
+                        opt.textContent = `Rev. ${r}`;
+                        revSelect.appendChild(opt);
+                    });
+                } catch (err) {
+                    console.error("❌ โหลด revision ไม่สำเร็จ:", err);
+                }
+            });
+
+            // filter company input 
+            document.getElementById('company-filter')?.addEventListener('input', async e => {
+                const filter = e.target.value.trim();
+                if (!filter) return;
+
+                try {
+                    const res = await fetch(`/company_lookup?query=${encodeURIComponent(filter)}`);
+                    if (!res.ok) throw new Error("Not found");
+
+                    const result = await res.json();
+
+                    document.getElementById('customer-company').value = result.company || '';
+                    document.getElementById('customer-address').value = result.address || '';
+
+                    // ✅ handle dropdown
+                    const contactDropdown = document.getElementById('contact-dropdown');
+                    if (!contactDropdown) return;
+
+                    const hasContacts = Array.isArray(result.contacts) && result.contacts.length > 0;
+
+                    if (hasContacts) {
+                    contactDropdown.innerHTML = '<option value="">-- Select Contact --</option>';
+                    result.contacts.forEach((c, idx) => {
+                        const opt = document.createElement('option');
+                        opt.value = idx;
+                        opt.textContent = `${c.name} (${c.email})`;
+                        contactDropdown.appendChild(opt);
+                    });
+
+                    contactDropdown.style.display = ''; // ✅ แสดง dropdown
+                    } else {
+                    contactDropdown.innerHTML = '';      // ล้างค่า
+                    contactDropdown.style.display = 'none'; // ✅ ซ่อน dropdown
+                    }
+
+                    contactDropdown.onchange = function () {
+                    const selected = result.contacts[this.value];
+                    if (selected) {
+                        document.getElementById('customer-name').value = selected.name || '';
+                        document.getElementById('customer-phone').value = selected.phone || '';
+                        document.getElementById('customer-email').value = selected.email || '';
+                    }
+                    };
+
+                } catch (err) {
+                    console.warn('❌ Company lookup failed:', err);
+                }
+            });
+
+            // filter sale input 
+            document.getElementById('sales-filter')?.addEventListener('input', async e => {
+                const code = e.target.value.trim();
+                if (!code) return;
+
+                try {
+                    const res = await fetch(`/sales_lookup_by_code?code=${encodeURIComponent(code)}`);
+                    if (!res.ok) throw new Error('Not found');
+
+                    const result = await res.json();
+
+                    document.getElementById('sales-person').value = result.salesPerson || '';
+                    document.getElementById('sales-mobile').value = result.salesMobile || '';
+                } catch (err) {
+                    console.warn('❌ Sales code lookup failed:', err);
+                }
+            });
+
+            // filter contact input
+            document.getElementById('contact-filter')?.addEventListener('input', async e => {
+                const code = e.target.value.trim();
+                if (!code) return;
+
+                try {
+                    const res = await fetch(`/contact_lookup_by_code?code=${encodeURIComponent(code)}`);
+                    if (!res.ok) throw new Error('Not found');
+
+                    const result = await res.json();
+
+                    document.getElementById('sales-contact').value = result.contactPerson || '';
+                    document.getElementById('contact-tel').value = result.contactTel || '';
+                } catch (err) {
+                    console.warn('❌ Contact code lookup failed:', err);
+                }
+            });
+
+            document.getElementById('quotation-status-filter')?.addEventListener('change', async () => {
+                await loadQuotationDropdown();
+            });
+
+            // ✅ Breadcrumbs
+            breadcrumbHome.addEventListener('click', () => navigateTo('categories'));
+            breadcrumbCategory.addEventListener('click', () => navigateTo('products'));
+
+            // ✅ Buttons
+            continueShoppingBtn.addEventListener('click', () => {
+                if (selectedCategory) {
+                    navigateTo('products');
+                    renderProducts();
+                } else {
+                    navigateTo('categories');
+                }
+            });
+
+            proceedToCustomerBtn.addEventListener('click', () => navigateTo('customer'));
+            backToCartBtn.addEventListener('click', () => navigateTo('cart'));
+            generateQuotationBtn.addEventListener('click', generateAndSendQuotation);
+
+            editQuoteBtn.addEventListener('click', () => navigateTo('customer'));
+            printQuoteBtn.addEventListener('click', async () => {
+                await saveSelectedDrawingsToSheet(drawingFiles); // บันทึกข้อมูล drawing
+                printQuotation(); // สร้าง PDF
+
+                const raw = document.getElementById('quotation-auto')?.value?.trim();
+                if (!raw) return;
+
+                let quotation_no = '', rev = '';
+                if (raw.includes('Rev.')) {
+                    const [q, r] = raw.split('Rev.');
+                    quotation_no = q.trim();
+                    rev = r.trim();
+                } else {
+                    quotation_no = raw.trim();
+                    rev = '';
+                }
+
+                try {
+                    const res = await fetch(`/drawing_files?quotation_no=${encodeURIComponent(quotation_no)}&rev=${encodeURIComponent(rev)}`);
+                    const drawingFiles = await res.json();
+
+                    setTimeout(() => {
+                    for (const f of drawingFiles) {
+                        let url = f.drawing_url;
+                        const fileName = f.drawing_name || 'drawing.pdf';
+
+                        const isDrive = url.includes('drive.google.com');
+                        if (isDrive && !url.includes('uc?export=download')) {
+                            const match = url.match(/\/d\/([a-zA-Z0-9_-]+)\//);
+                            const fileId = match?.[1];
+                            if (fileId) {
+                            url = `https://drive.google.com/uc?export=download&id=${fileId}`;
+                            } else {
+                            console.warn('❌ Invalid Google Drive URL:', url);
+                            continue;
+                            }
+                        }
+
+                        // ✅ ใช้ <a download> แทน fetch
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.setAttribute('download', fileName);
+                        a.setAttribute('target', '_blank');
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    }
+                    }, 3000); // รอ PDF เสร็จ 3 วิ ก่อนดาวน์โหลดไฟล์
+                } catch (err) {
+                    console.error('❌ Failed to fetch drawing files:', err);
+                    alert('ไม่สามารถดึงไฟล์ Drawing จากระบบได้');
+                }
+            });
+
+            generateQuoteBtn.addEventListener('click', () => {
+                if (cart.length > 0) {
+                    navigateTo('customer');
+                } else {
+                    alert('Please add items to your cart first');
+                }
+            });
+
+            // ✅ Search filter
+            searchInput.addEventListener('input', (e) => {
+                searchTerm = e.target.value.toLowerCase();
+                if (currentState === 'categories') {
+                    renderCategories();
+                } else if (currentState === 'products') {
+                    renderProducts();
+                }
+            });
+        }
+
+        // Navigate to a specific view
+        function navigateTo(state) {
+            currentState = state;
+
+            // Update navigation
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+
+            // Update step indicators
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.remove('active');
+                step.classList.remove('completed');
+            });
+
+            // Hide all views
+            categoriesView.classList.add('hidden');
+            productsView.classList.add('hidden');
+            cartView.classList.add('hidden');
+            customerView.classList.add('hidden');
+            quotationView.classList.add('hidden');
+
+            // Update breadcrumb
+            breadcrumbCategory.classList.add('hidden');
+            breadcrumbSeparator1.classList.add('hidden');
+            breadcrumbProduct.classList.add('hidden');
+            breadcrumbSeparator2.classList.add('hidden');
+
+            // ซ่อน/แสดง search input เฉพาะหน้า categories, products
+            if (state === 'categories' || state === 'products') {
+                searchInput.parentElement.parentElement.style.display = '';
+            } else {
+                searchInput.parentElement.parentElement.style.display = 'none';
+            }
+
+            // ซ่อนปุ่ม Next Page เป็น default
+            nextPageBtn.classList.add('hidden');
+
+            // Show appropriate view based on state
+            switch(state) {
+                case 'categories':
+                    navCategories.classList.add('active');
+                    categoriesView.classList.remove('hidden');
+                    contentTitle.textContent = 'Product Categories';
+                    step1.classList.add('active');
+                    break;
+
+                case 'products':
+                    navProducts.classList.add('active');
+                    productsView.classList.remove('hidden');
+                    contentTitle.textContent = `${getCategoryNameById(selectedCategory)} Products`;
+
+                    // Update breadcrumb
+                    breadcrumbCategory.textContent = getCategoryNameById(selectedCategory);
+                    breadcrumbCategory.classList.remove('hidden');
+                    breadcrumbSeparator1.classList.remove('hidden');
+
+                    step1.classList.add('completed');
+                    step2.classList.add('active');
+
+                    // ✅ แสดงปุ่ม Next Page
+                    nextPageBtn.classList.remove('hidden');
+
+                    renderProducts();
+                    break;
+
+                case 'cart':
+                    navCart.classList.add('active');
+                    cartView.classList.remove('hidden');
+                    contentTitle.textContent = 'Shopping Cart';
+
+                    step1.classList.add('completed');
+                    step2.classList.add('completed');
+                    step3.classList.add('active');
+
+                    renderCart();
+                    break;
+
+                case 'customer':
+                    navCustomer.classList.add('active');
+                    customerView.classList.remove('hidden');
+                    contentTitle.textContent = 'Customer Information';
+
+                    step1.classList.add('completed');
+                    step2.classList.add('completed');
+                    step3.classList.add('completed');
+                    step4.classList.add('active');
+                    break;
+
+                case 'quotation':
+                    navQuotation.classList.add('active');
+                    quotationView.classList.remove('hidden');
+                    contentTitle.textContent = 'Quotation';
+
+                    step1.classList.add('completed');
+                    step2.classList.add('completed');
+                    step3.classList.add('completed');
+                    step4.classList.add('completed');
+                    step5.classList.add('active');
+
+                    loadQuotationDropdown();
+                    break;
+            }
+        }
+
+        // Render categories
+        function renderCategories() {
+            const categoriesGrid = document.querySelector('#categories-view .category-grid');
+            categoriesGrid.innerHTML = '';
+
+            // ✅ ใช้ categories โดยตรง ถ้าเป็นหมวดหมู่ pipe จะไม่แสดง
+            const filteredCategories = searchTerm
+                ? categories.filter(cat => 
+                    cat.name.toLowerCase().includes(searchTerm) &&
+                    cat.name.toLowerCase() !== 'pipe'
+                )
+                : categories.filter(cat => cat.name.toLowerCase() !== 'pipe');
+
+            filteredCategories.forEach(cat => {
+                const name = cat.name;
+                const icon = cat.icon || '📦';
+                const productCount = productCounts[name] || 0;
+
+                const card = document.createElement('div');
+                card.className = 'category-card bg-white rounded-lg shadow-md overflow-hidden cursor-pointer hover:shadow-lg';
+                card.innerHTML = `
+                    <div class="p-6 text-center">
+                        <div class="text-4xl mb-3">${icon}</div>
+                        <h3 class="font-medium text-lg">${name}</h3>
+                        <p class="text-gray-500 text-sm mt-1">${productCount} product${productCount !== 1 ? 's' : ''}</p>
+                    </div>
+                `;
+
+                card.addEventListener('click', () => {
+                    onCategorySelected(name);
+                });
+
+                categoriesGrid.appendChild(card);
+            });
+
+            // 🕳️ ไม่พบหมวดหมู่ที่ตรงกับการค้นหา
+            if (filteredCategories.length === 0) {
+                categoriesGrid.innerHTML = `
+                    <div class="col-span-full py-8 text-center text-gray-500">
+                        No categories found matching "${searchTerm}"
+                    </div>
+                `;
+            }
+        }
+
+        // Render products for selected category
+        function renderProducts() {
+            const productsView = document.getElementById('products-view');
+            const productsGrid = productsView.querySelector('.product-grid');
+            productsGrid.innerHTML = '';
+
+            if (!selectedCategory) return;
+
+            const allProducts = getMergedProducts();
+            const categoryProducts = allProducts[selectedCategory] || [];
+
+            const filteredProducts = searchTerm
+                ? categoryProducts.filter(product => {
+                    const nameMatch = (product.name || '').toLowerCase().includes(searchTerm);
+                    const idMatch = (product.product_id ? String(product.product_id).toLowerCase() : '').includes(searchTerm);
+                    return nameMatch || idMatch;
+                })
+                : categoryProducts;
+
+            // Show pipe-specific controls
+            if (selectedCategory === 'Lined Pipe') {
+                let controls = document.getElementById('pipe-controls');
+                if (!controls) {
+                    controls = document.createElement('div');
+                    controls.id = 'pipe-controls';
+                    controls.className = 'mb-4 flex flex-wrap items-center gap-2';
+
+                    controls.innerHTML = `
+                        <div class="flex flex-wrap items-center gap-2 w-full">
+                            <select id="pipe-standard-type" class="border rounded px-2 py-1">
+                                <option value="">All Standards</option>
+                                <option value="din">DIN</option>
+                                <option value="ansi">ANSI</option>
+                                <option value="jis">JIS</option>
+                                <option value="other">OTHER</option>
+                            </select>
+
+                            <select id="pipe-sub-type" class="border rounded px-2 py-1">
+                                <option value="">All Subtypes</option>
+                                <option value="pn10">PN10</option>
+                                <option value="pn16">PN16</option>
+                                <option value="pn40">PN40</option>
+                                <option value="150lb">150LB</option>
+                                <option value="300lb">300LB</option>
+                                <option value="10k">10K</option>
+                                <option value="20k">20K</option>
+                            </select>
+
+                            <select id="pipe-size" class="border rounded px-2 py-1">
+                                <option value="">All Types</option>
+                                <option value="PIPE">PIPE</option>
+                                <option value="SPACERS">SPACERS</option>
+                                <option value="INCLINED SPACER">INCLINED SPACER</option>
+                                <option value="ELBOWS">ELBOWS</option>
+                                <option value="TEES">TEES</option>
+                                <option value="LATERAL TEES">LATERAL TEES</option>
+                                <option value="CROSSES">CROSSES</option>
+                                <option value="INSTRUMENT-TEES">INSTRUMENT-TEES</option>
+                                <option value="REDUCERS">REDUCERS</option>
+                                <option value="BLIND FLANGES">BLIND FLANGES</option>
+                                <option value="EXPANSION JOINTS">EXPANSION JOINTS</option>
+                                <option value="VACUUM EXPANSION JOINT">VACUUM EXPANSION JOINT</option>
+                                <option value="NOZZLE LINERS">NOZZLE LINERS</option>
+                                <option value="DIP PIPE">DIP PIPE</option>
+                                <option value="HOSE">HOSE</option>
+                                <option value="SPIRAL TUBING">SPIRAL TUBING</option>
+                                <option value="AUXILIARY FLANGES">AUXILIARY FLANGES</option>
+                                <option value="ACCESSORIES">ACCESSORIES</option>
+                            </select>
+
+                            <button id="add-pipe-btn" class="ml-auto flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition">
+                                <span class="text-lg">➕</span> Add New Pipe
+                            </button>
+                        </div>
+                    `;
+                    productsView.insertBefore(controls, productsGrid);
+
+                    const subtypesMap = {
+                        din: ["PN10", "PN16", "PN25", "PN40"],
+                        ansi: ["150LB", "300LB"],
+                        jis: ["10K", "20K"]
+                    };
+
+                    const standardSelect = document.getElementById('pipe-standard-type');
+                    const subTypeSelect = document.getElementById('pipe-sub-type');
+                    const sizeSelect = document.getElementById('pipe-size');
+
+                    standardSelect.addEventListener('change', () => {
+                        const selectedStandard = standardSelect.value;
+                        subTypeSelect.innerHTML = '<option value="">All Subtypes</option>';
+
+                        if (subtypesMap[selectedStandard]) {
+                            subtypesMap[selectedStandard].forEach(sub => {
+                                const opt = document.createElement('option');
+                                opt.value = sub.toLowerCase();
+                                opt.textContent = sub;
+                                subTypeSelect.appendChild(opt);
+                            });
+                        }
+
+                        currentPage = 1;
+                        renderProducts();
+                    });
+
+                    subTypeSelect.addEventListener('change', () => {
+                        currentPage = 1;
+                        renderProducts();
+                    });
+                    sizeSelect.addEventListener('change', () => {
+                        currentPage = 1;
+                        renderProducts();
+                    });
+
+                    document.getElementById('add-pipe-btn').onclick = () => window.open('/add-pipe', '_blank');
+                }
+            } else {
+                document.getElementById('pipe-controls')?.remove();
+            }
+
+            const sizeSelect = document.getElementById('pipe-size');
+            const selectedType = sizeSelect ? sizeSelect.value : '';
+
+            let finalProducts = filteredProducts;
+            if (selectedCategory === 'Lined Pipe' && selectedType) {
+                finalProducts = filteredProducts.filter(product =>
+                    (product.sub_category || '').toUpperCase() === selectedType.toUpperCase()
+                );
+            }
+
+            const standardSelect = document.getElementById('pipe-standard-type');
+            const selectedStandard = standardSelect ? standardSelect.value.toUpperCase() : '';
+
+            if (selectedCategory === 'Lined Pipe' && selectedStandard) {
+                finalProducts = finalProducts.filter(product =>
+                    getPipeStandardFromId(product.product_id) === selectedStandard
+                );
+            }
+
+            const subTypeSelect = document.getElementById('pipe-sub-type');
+            const selectedSubtype = subTypeSelect ? subTypeSelect.value.toUpperCase() : '';
+
+            if (selectedCategory === 'Lined Pipe' && selectedSubtype) {
+                finalProducts = finalProducts.filter(product =>
+                    getPipeSubtypeFromId(product.product_id) === selectedSubtype
+                );
+            }
+
+            const startIndex = (currentPage - 1) * pageSize;
+            const endIndex = startIndex + pageSize;
+            const pagedProducts = finalProducts.slice(startIndex, endIndex);
+
+            totalPages = Math.ceil(finalProducts.length / pageSize);
+            updatePaginationUI();
+
+            pagedProducts.forEach(product => {
+                const productId = product.product_id || '';
+                const isCustom = typeof productId === 'string' && productId.startsWith('custom-');
+
+                let imageUrl = product.image_url || product.image || '';
+                if (imageUrl) {
+                    imageUrl = imageUrl.startsWith('/')
+                        ? `http://localhost:3000${imageUrl}`
+                        : imageUrl;
+                } else {
+                    imageUrl = '/images/m-wave.jpg';
+                }
+
+                const productCard = document.createElement('div');
+                productCard.className = 'product-card bg-white rounded-lg shadow-md overflow-hidden';
+
+                const inCartItem = cart.find(item => isSameProduct(item, product));
+                const inCart = !!inCartItem;
+                if (inCart) productCard.classList.add('selected');
+
+                const quantityInCart = inCartItem ? inCartItem.quantity : 1;
+                const dataProduct = encodeURIComponent(JSON.stringify(product));
+
+                const productIdText = typeof productId === 'string'
+                ? productId.toUpperCase()
+                : String(productId || 'N/A');
+
+                const limits = getSpacerLengthLimit(product.product_id);
+                const min = limits?.min || 1;
+                const max = limits?.max || 999;
+
+                if (!product.length && limits) {
+                    product.length = min;
+                }
+                productCard.innerHTML = `
+                <div class="p-6">
+                    <div class="flex justify-between items-start mb-4">
+                    <img src="${imageUrl}" alt="${product.name}" class="h-24 w-24 object-contain">
+                    <div class="text-xs font-mono bg-gray-100 px-2 py-1 rounded whitespace-normal break-all">${productIdText}</div>
+                    </div>
+                    <h3 class="font-medium text-lg mb-2">${product.name}</h3>
+                    <div class="text-lg font-bold mb-2 price-display">
+                        ฿${parseFloat(product.price || 0).toFixed(2)}
+                    </div>
+
+                    ${
+                        selectedCategory === 'Lined Pipe' &&
+                        ['SPACERS', 'PIPE'].includes((product.sub_category || '').toUpperCase()) ? `
+                            <div class="text-sm mb-2">
+                                Length (mm): 
+                                <input type="text" 
+                                    value="${product.length}" 
+                                    class="pipe-length-input border px-2 py-1 w-24"
+                                    data-product-id="${product.product_id}"
+                                    inputmode="numeric" pattern="[0-9]*">
+                            </div>
+                        ` : ''
+                    }
+
+                    <button class="toggle-details text-sm text-blue-500 hover:underline mb-2">Show Details</button>
+                    <div class="details hidden text-sm text-gray-600 mb-2">
+                    <p><strong>Description:</strong> ${product.description || 'No description available'}</p>
+                    <p><strong>Diameter:</strong> ${product.diameter || '-'}</p>
+                    <p><strong>Length:</strong> ${product.length || '-'} mm</p>
+                    <p><strong>PTFE Grade:</strong> ${product.ptfeGrade || '-'}</p>
+                    <p><strong>Coating:</strong> ${product.coating || '-'}</p>
+                    <p><strong>Flange:</strong> ${product.flangeConfig || '-'}</p>
+                    <p><strong>Features:</strong> ${
+                        ['ventHole', 'grounding', 'vacuumRated']
+                        .filter(k => product[k])
+                        .map(k => k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1'))
+                        .join(', ') || 'None'
+                    }</p>
+                    </div>
+
+                    <div class="flex justify-between items-center">
+                    <button class="add-to-cart-btn px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors ${inCart ? 'hidden' : ''}">
+                        Add to Cart
+                    </button>
+                    <div class="quantity-control ${inCart ? '' : 'hidden'}">
+                        <div class="quantity-btn minus" data-product="${dataProduct}">-</div>
+                        <input type="number" class="quantity-input" value="${quantityInCart}" min="1" data-product="${dataProduct}">
+                        <div class="quantity-btn plus" data-product="${dataProduct}">+</div>
+                    </div>
+                    </div>
+                </div>
+                `;
+
+                // ✅ Add toggle event
+                const toggleBtn = productCard.querySelector('.toggle-details');
+                const detailsDiv = productCard.querySelector('.details');
+
+                toggleBtn.addEventListener('click', () => {
+                const isVisible = !detailsDiv.classList.contains('hidden');
+                detailsDiv.classList.toggle('hidden');
+                toggleBtn.textContent = isVisible ? 'Show Details' : 'Hide Details';
+                });
+
+                const addToCartBtn = productCard.querySelector('.add-to-cart-btn');
+                addToCartBtn.addEventListener('click', () => {
+                    product.category = selectedCategory;
+                    addToCart(product);
+                    productCard.classList.add('selected');
+                    addToCartBtn.classList.add('hidden');
+                    productCard.querySelector('.quantity-control').classList.remove('hidden');
+                });
+
+                const minusBtn = productCard.querySelector('.quantity-btn.minus');
+                const plusBtn = productCard.querySelector('.quantity-btn.plus');
+                const quantityInput = productCard.querySelector('.quantity-input');
+
+                minusBtn.addEventListener('click', () => {
+                    try {
+                        const parsed = JSON.parse(decodeURIComponent(minusBtn.dataset.product));
+                        const item = cart.find(i => isSameProduct(i, parsed));
+                        if (item && item.quantity > 1) {
+                            item.quantity--;
+                            quantityInput.value = item.quantity;
+                        } else if (item && item.quantity === 1) {
+                            removeFromCart(item);
+                            productCard.classList.remove('selected');
+                            addToCartBtn.classList.remove('hidden');
+                            productCard.querySelector('.quantity-control').classList.add('hidden');
+                        }
+                        updateCartSummary();
+                    } catch (err) { console.warn('Invalid product data', err); }
+                });
+
+                plusBtn.addEventListener('click', () => {
+                    try {
+                        const parsed = JSON.parse(decodeURIComponent(plusBtn.dataset.product));
+                        const item = cart.find(i => isSameProduct(i, parsed));
+                        if (item) {
+                            item.quantity++;
+                            quantityInput.value = item.quantity;
+                            updateCartSummary();
+                        }
+                    } catch (err) { console.warn('Invalid product data', err); }
+                });
+
+                quantityInput.addEventListener('change', () => {
+                    try {
+                        const parsed = JSON.parse(decodeURIComponent(quantityInput.dataset.product));
+                        const value = parseInt(quantityInput.value) || 1;
+                        const item = cart.find(i => isSameProduct(i, parsed));
+                        if (item) {
+                            item.quantity = Math.max(1, value);
+                            quantityInput.value = item.quantity;
+                            updateCartSummary();
+                        }
+                    } catch (err) { console.warn('Invalid product data', err); }
+                });
+
+                productsGrid.appendChild(productCard);
+                const lengthInput = productCard.querySelector('.pipe-length-input');
+                if (lengthInput) {
+                    lengthInput.addEventListener('input', () => {
+                        const length = parseFloat(lengthInput.value) || 0;
+                        product.length = length;
+                        const price = calculatePipePrice(product.product_id, length);
+                        product.price = price;
+
+                        const priceEl = productCard.querySelector('.price-display');
+                        if (priceEl) priceEl.textContent = `฿${price.toFixed(2)}`;
+                    });
+
+                    lengthInput.addEventListener('blur', () => {
+                        const length = parseFloat(lengthInput.value) || 0;
+                        const limit = getSpacerLengthLimit(product.product_id);
+
+                        if (limit && (length < limit.min || length > limit.max)) {
+                            alert(`❌ Spacer length must be between ${limit.min} and ${limit.max} mm.`);
+                            lengthInput.value = limit.min;
+                            product.length = limit.min;
+                            lengthInput.focus(); // ให้ผู้ใช้แก้ต่อถ้าต้องการ
+                        }
+                    });   
+                }
+                const addButton = productCard.querySelector('.add-to-cart-btn');
+                if (addButton && lengthInput) {
+                    addButton.addEventListener('click', () => {
+                        const length = parseFloat(lengthInput.value) || 0;
+                        const limit = getSpacerLengthLimit(product.product_id);
+
+                        if (limit && (length < limit.min || length > limit.max)) {
+                            alert(`❌ Spacer length must be between ${limit.min} and ${limit.max} mm.`);
+                            lengthInput.value = limit.min;
+                            product.length = limit.min;
+                            return;
+                        }
+
+                        product.length = length;
+                        product.price = calculatePipePrice(product.product_id, length);
+
+                    });
+                }
+            });
+
+            if (finalProducts.length === 0) {
+                productsGrid.innerHTML = `
+                    <div class="col-span-full py-8 text-center text-gray-500">
+                        No products found matching "${searchTerm}"
+                    </div>
+                `;
+            }
+        }
+
+        function groupCartItems() {
+            const grouped = [];
+            for (const item of cart) {
+                const existing = grouped.find(g => isSameProduct(g, item));
+                if (existing) {
+                    existing.quantity += item.quantity;
+                } else {
+                    grouped.push({ ...item }); // copy item
+                }
+            }
+            return grouped;
+        }
+
+        // Render cart
+        function renderCart() {
+            const cartItemsContainer = document.getElementById('cart-items');
+            cartItemsContainer.innerHTML = '';
+
+            if (cart.length === 0) {
+                emptyCartMessage.classList.remove('hidden');
+                proceedToCustomerBtn.disabled = true;
+                proceedToCustomerBtn.classList.add('opacity-50');
+                updateCartTotals();
+                return;
+            }
+
+            emptyCartMessage.classList.add('hidden');
+            proceedToCustomerBtn.disabled = false;
+            proceedToCustomerBtn.classList.remove('opacity-50');
+
+            const grouped = groupCartItems();
+            grouped.forEach((item) => {
+                // ✅ แปลงราคาให้แน่ใจว่าเป็น number
+                const price = parseFloat(item.price || 0);
+                const itemTotal = price * item.quantity;
+
+                let imageUrl = item.image_url || item.image || '';
+                if (imageUrl) {
+                    imageUrl = imageUrl.startsWith('/')
+                        ? `http://localhost:3000${imageUrl}`
+                        : imageUrl;
+                } else {
+                    imageUrl = '/images/m-wave.jpg';
+                }
+
+                const dataProduct = encodeURIComponent(JSON.stringify(item));
+
+                const cartItem = document.createElement('div');
+                cartItem.className = 'cart-item p-4 flex justify-between items-center';
+                cartItem.innerHTML = `
+                    <div class="flex items-center">
+                        <img src="${imageUrl}" alt="${item.name}" class="h-12 w-12 object-contain mr-4">
+                        <div>
+                            <h4 class="font-medium">${item.name}</h4>
+                            <div class="text-sm text-gray-500">${getCategoryNameById(item.category)} • ฿${price.toFixed(2)}</div>
+                            ${item.diameter ? `
+                                <div class="mt-1 text-xs text-gray-600 leading-5">
+                                    <p><strong>Diameter:</strong> ${item.diameter}"</p>
+                                    <p><strong>Length:</strong> ${item.length} mm</p>
+                                    <p><strong>PTFE Grade:</strong> ${item.ptfeGrade}</p>
+                                    <p><strong>Coating:</strong> ${item.coating}</p>
+                                    <p><strong>Flange:</strong> ${item.flangeConfig || item.flange || '—'}</p>
+                                    <p><strong>Features:</strong> ${['ventHole', 'grounding', 'vacuumRated']
+                                        .filter(k => item[k])
+                                        .map(k => k.charAt(0).toUpperCase() + k.slice(1).replace(/([A-Z])/g, ' $1'))
+                                        .join(', ') || 'None'}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <div class="quantity-control mr-4">
+                            <div class="quantity-btn minus" data-product="${dataProduct}">-</div>
+                            <input type="number" class="quantity-input" value="${item.quantity}" min="1" data-product="${dataProduct}">
+                            <div class="quantity-btn plus" data-product="${dataProduct}">+</div>
+                        </div>
+                        <div class="text-right mr-4">
+                            <div class="font-medium">฿${itemTotal.toFixed(2)}</div>
+                        </div>
+                        <button class="remove-item text-gray-400 hover:text-red-500" data-product="${dataProduct}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+
+                cartItemsContainer.appendChild(cartItem);
+            });
+
+            document.querySelectorAll('.quantity-btn.minus').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const product = JSON.parse(decodeURIComponent(btn.dataset.product));
+                    const item = cart.find(i => isSameProduct(i, product));
+                    if (item) {
+                        if (item.quantity > 1) {
+                            item.quantity--;
+                        } else {
+                            removeFromCart(item);
+                        }
+                        renderCart();
+                    }
+                });
+            });
+
+            document.querySelectorAll('.quantity-btn.plus').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const product = JSON.parse(decodeURIComponent(btn.dataset.product));
+                    const item = cart.find(i => isSameProduct(i, product));
+                    if (item) {
+                        item.quantity++;
+                        renderCart();
+                    }
+                });
+            });
+
+            document.querySelectorAll('.quantity-input').forEach(input => {
+                input.addEventListener('change', () => {
+                    const value = parseInt(input.value) || 1;
+                    const product = JSON.parse(decodeURIComponent(input.dataset.product));
+                    const item = cart.find(i => isSameProduct(i, product));
+                    if (item) {
+                        item.quantity = Math.max(1, value);
+                        renderCart();
+                    }
+                });
+            });
+
+            document.querySelectorAll('.remove-item').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const product = JSON.parse(decodeURIComponent(btn.dataset.product));
+                    removeFromCart(product);
+                    renderCart();
+                });
+            });
+
+            updateCartSummary();
+            updateCartTotals();
+        }
+
+        function isSameProduct(a, b) {
+            return (a.product_id ?? a.id ?? '') === (b.product_id ?? b.id ?? '');
+        }
+
+        function addToCart(product) {
+            const existingItem = cart.find(item => item.product_id === product.product_id);
+
+            if (existingItem) {
+                // ✅ อัปเดตข้อมูลทับรายการเดิม
+                existingItem.length = parseFloat(product.length || 0);
+                existingItem.volume = parseFloat(product.volume || 0);
+                existingItem.price = parseFloat(product.price || 0);
+                existingItem.quantity += 1;
+                existingItem.cost = parseFloat(product.cost || 0); // ✅ อัปเดต cost ด้วย
+            } else {
+                cart.push({
+                    id: product.id || product.product_id || '-',  // สำหรับอ้างอิงภายใน cart
+                    product_id: product.product_id || product.id || '-',  // แสดง/ส่งออก
+                    name: product.name || '',
+                    price: parseFloat(product.price || 0),
+                    quantity: 1,
+                    category: product.category || selectedCategory,
+                    description: product.description || '',
+                    diameter: parseFloat(product.diameter || 0),
+                    length: parseFloat(product.length || 0),
+                    volume: parseFloat(product.volume || 0),
+                    ptfeGrade: product.ptfeGrade || '',
+                    coating: product.coating || '',
+                    flangeConfig: product.flangeConfig || product.flange || '',
+                    ventHole: !!product.ventHole,
+                    grounding: !!product.grounding,
+                    vacuumRated: !!product.vacuumRated,
+                    image_url: product.image_url || product.image || null,
+                    cost: parseFloat(product.cost || 0) // ✅ แนบราคาทุนไว้แบบซ่อน
+                });
+            }
+
+            updateCartSummary();
+            renderCart();
+        }
+
+        // ✅ ลบสินค้าด้วย object (ใช้ isSameProduct)
+        function removeFromCart(product) {
+            if (!product) return;
+            cart = cart.filter(item => !isSameProduct(item, product));
+            updateCartSummary();
+            renderCart(); // เพื่อให้ UI อัปเดตทันที
+        }
+
+        // ✅ สรุปตะกร้า (รายการไม่ซ้ำ / จำนวนรวม)
+        function updateCartSummary() {
+            const grouped = groupCartItems();
+            const totalItems = grouped.length;
+            const totalQty = cart.reduce((sum, item) => sum + item.quantity, 0);
+            const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+            const cartBadge = document.getElementById('cart-badge');
+            if (cartBadge) cartBadge.textContent = totalItems;
+
+            summaryItems.textContent = totalQty;
+            summarySubtotal.textContent = `฿${subtotal.toFixed(2)}`;
+
+            generateQuoteBtn.disabled = totalQty === 0;
+            generateQuoteBtn.classList.toggle('opacity-50', totalQty === 0);
+        }
+
+        // อัปเดตยอดรวมในหน้า cart
+        function updateCartTotals() {
+            const subtotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+            const tax = subtotal * 0.1; // VAT 10%
+            const total = subtotal + tax;
+
+            cartSubtotal.textContent = `฿${subtotal.toFixed(2)}`;
+            cartTax.textContent = `฿${tax.toFixed(2)}`;
+            cartTotal.textContent = `฿${total.toFixed(2)}`;
+        }
+        
+        function autoGenerateDescription(item) {
+            const parts = [];
+
+            if (item.diameter) parts.push(`Diameter: ${item.diameter}"`);
+            if (item.length) parts.push(`Length: ${item.length}`);
+            if (item.ptfeGrade) parts.push(`PTFE Grade: ${item.ptfeGrade}`);
+            if (item.coating) parts.push(`Coating: ${item.coating}`);
+            if (item.flangeConfig || item.flange) parts.push(`Flange: ${item.flangeConfig || item.flange}`);
+
+            parts.push(`Vent Hole: ${item.ventHole ? 'Yes' : 'No'}`);
+            parts.push(`Grounding: ${item.grounding ? 'Yes' : 'No'}`);
+            parts.push(`Vacuum Rated: ${item.vacuumRated ? 'Yes' : 'No'}`);
+
+            return parts.join(', ');
+        }
+
+        // Generate quotation
+        let lastSubmittedCartSnapshot = '';
+        let lastSubmittedCustomerSnapshot = '';
+
+        async function generateAndSendQuotation() {
+            const getValue = id => document.getElementById(id)?.value?.trim() || '';
+            const setText = (id, text) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = text;
+            };
+
+            // Customer info
+            const customerName = getValue('customer-name');
+            const customerEmail = getValue('customer-email');
+            if (!customerName || !customerEmail) {
+                alert('Please fill in required fields (Name and Email)');
+                return;
+            }
+            if (!cart.length) {
+                alert('Cart is empty');
+                return;
+            }
+
+            const customerCompany = getValue('customer-company');
+            const customerPhone = getValue('customer-phone');
+            const customerAddress = getValue('customer-address');
+            const customerNotes = getValue('customer-notes');
+            const customerRef = getValue('customer-ref');
+            const enquiryRef = getValue('enquiry-ref');
+
+            // Sales info
+            const salesPerson = getValue('sales-person');
+            const salesMobile = getValue('sales-mobile');
+            const salesEmail = getValue('sales-email');
+            const salesContact = getValue('sales-contact');
+            const contactTel = getValue('contact-tel');
+            const contactEmail = getValue('contact-email');
+
+            // Delivery / Payment / Validity
+            const deliveryTime = getValue('delivery-time');
+            const deliveryTerm = getValue('delivery-term');
+            const paymentTerm = getValue('payment-term');
+            const quotationValidity = getValue('quotation-validity');
+
+            let quotationNo = getValue('quotation-auto').split(' Rev.')[0] || 'QT2408T-0001';
+
+            const currentCartSnapshot = JSON.stringify(cart);
+            const currentCustomerSnapshot = JSON.stringify({
+                customerName, customerEmail, customerPhone, customerCompany, customerAddress, customerNotes,
+                customerRef, enquiryRef,
+                salesPerson, salesMobile, salesEmail, salesContact, contactTel, contactEmail,
+                deliveryTime, deliveryTerm, paymentTerm, quotationValidity
+            });
+
+            if (currentCartSnapshot === lastSubmittedCartSnapshot &&
+                currentCustomerSnapshot === lastSubmittedCustomerSnapshot) {
+                alert('No changes detected. Skipping submission.');
+                return;
+            }
+
+            // Update UI preview (before sending)
+            const today = new Date().toLocaleDateString('en-GB');
+            setText('quote-date', today);
+            setText('signature-date', today);
+            setText('quote-customer-name', customerName);
+            setText('quote-customer-email', customerEmail);
+            setText('quote-customer-phone', customerPhone);
+            setText('quote-customer-company', customerCompany);
+            setText('quote-customer-ref', customerRef);
+            setText('quote-enquiry-ref', enquiryRef);
+            setText('quote-customer-address', customerAddress);
+            setText('quote-notes', customerNotes || 'No additional notes.');
+            setText('quote-sales-person', salesPerson);
+            setText('quote-sales-mobile', salesMobile);
+            setText('quote-sales-email', salesEmail);
+            setText('quote-sales-contact', salesContact);
+            setText('quote-contact-tel', contactTel);
+            setText('quote-contact-email', contactEmail);
+            setText('quote-delivery-time', deliveryTime);
+            setText('quote-delivery-term', deliveryTerm);
+            setText('quote-payment-term', paymentTerm);
+            setText('quote-quotation-validity', quotationValidity);
+
+            renderQuotationItems(cart);
+
+            const generateBtn = document.getElementById('generate-quotation-btn');
+            if (generateBtn) generateBtn.disabled = true;
+
+            try {
+                const sanitizedItems = cart.map(item => {
+                    const desc = item.description?.trim() || autoGenerateDescription(item);
+                    const length = item.length;
+
+                    let finalDesc = desc;
+                    if (/L\s*=\s*$/.test(desc) && length) {
+                        finalDesc = desc + `${length}mm`;
+                    } else if (!/L\s*=/.test(desc) && length) {
+                        finalDesc = desc + `, L=${length}mm`;
+                    }
+
+                    return {
+                        product_id: String(item.product_id || item.id || '-'),
+                        name: String(item.name || ''),
+                        description: finalDesc,
+                        category: String(item.category || 'uncategorized'),
+                        price: parseFloat(item.price || 0),
+                        quantity: parseInt(item.quantity) || 1,
+                        length: parseFloat(item.length || 0),
+                        volume: parseFloat(item.volume || 0),
+                        cost: parseFloat(item.cost || 0)   // ✅ ใช้จาก cart โดยตรง
+                    };
+                });
+
+                const payload = {
+                    quotation_no: quotationNo,
+                    customer_name: customerName,
+                    email: customerEmail,
+                    phone: customerPhone,
+                    company: customerCompany,
+                    address: customerAddress,
+                    notes: customerNotes,
+                    sales_person: salesPerson,
+                    sales_mobile: salesMobile,
+                    sales_email: salesEmail,
+                    sales_contact: salesContact,
+                    contact_tel: contactTel,
+                    contact_email: contactEmail,
+                    delivery_time: deliveryTime,
+                    delivery_term: deliveryTerm,
+                    payment_term: paymentTerm,
+                    quotation_validity: quotationValidity,
+                    customer_ref: customerRef,
+                    enquiry_ref: enquiryRef,
+                    items: sanitizedItems
+                };
+
+                const res = await fetch("http://localhost:3000/add_quotation", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    const errText = await res.text();
+                    throw new Error(`Failed to submit quotation.\n${errText}`);
+                }
+
+                const data = await res.json();
+
+                const quoteNoElement = document.querySelector('.quotation .font-normal');
+                if (data.quotation_no && quoteNoElement) {
+                    quoteNoElement.textContent = data.rev > 0
+                        ? `${data.quotation_no} Rev. ${data.rev}`
+                        : data.quotation_no;
+                }
+
+                // ✅ อัปเดตช่อง input ให้แสดง Rev ด้วยเช่นกัน
+                const quotationInput = document.getElementById('quotation-auto');
+                if (quotationInput) {
+                    quotationInput.value = data.rev > 0
+                        ? `${data.quotation_no} Rev. ${data.rev}`
+                        : data.quotation_no;
+                }
+                renderQuotationItems();
+
+                if (data.status === "skipped") {
+                    alert(`Duplicate quotation. Skipped saving. Quotation No: ${data.quotation_no}`);
+                } else if (data.status === "success") {
+                    alert("Quotation saved successfully to Google Sheet.");
+                }
+
+                lastSubmittedCartSnapshot = currentCartSnapshot;
+                lastSubmittedCustomerSnapshot = currentCustomerSnapshot;
+
+                if (typeof loadQuotationDropdown === 'function') {
+                    await loadQuotationDropdown();
+                }
+
+                navigateTo('quotation');
+
+            } catch (err) {
+                console.error("❌ Error saving quotation:", err);
+                alert("Error saving quotation. Please check the data and try again.");
+            } finally {
+                if (generateBtn) generateBtn.disabled = false;
+            }
+        }
+
+        function numberToWordsBaht(num) {
+            const a = [
+                '', 'one', 'two', 'three', 'four', 'five',
+                'six', 'seven', 'eight', 'nine', 'ten', 'eleven',
+                'twelve', 'thirteen', 'fourteen', 'fifteen',
+                'sixteen', 'seventeen', 'eighteen', 'nineteen'
+            ];
+            const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty',
+                'sixty', 'seventy', 'eighty', 'ninety'];
+
+            const units = [
+                '', ' thousand', ' million', ' billion', ' trillion',
+                ' quadrillion', ' quintillion', ' sextillion', ' septillion'
+            ];
+
+            const chunkToWords = (n) => {
+                if (n === 0) return '';
+                if (n < 20) return a[n];
+                if (n < 100) return b[Math.floor(n / 10)] + (n % 10 ? '-' + a[n % 10] : '');
+                if (n < 1000) return a[Math.floor(n / 100)] + ' hundred' + (n % 100 ? ' ' + chunkToWords(n % 100) : '');
+                return '';
+            };
+
+            const numToWords = (num) => {
+                if (num === 0) return 'zero';
+                const chunks = [];
+                while (num > 0) {
+                chunks.push(num % 1000);
+                num = Math.floor(num / 1000);
+                }
+                return chunks
+                .map((chunk, i) => chunk ? chunkToWords(chunk) + units[i] : '')
+                .reverse()
+                .join(' ')
+                .trim();
+            };
+
+            const parts = num.toFixed(2).split('.');
+            const baht = parseInt(parts[0], 10);
+            const satang = parseInt(parts[1], 10);
+
+            const bahtWords = numToWords(baht).toUpperCase();
+
+            if (satang === 0) {
+                return `(${bahtWords} BAHT ONLY)`;
+            } else {
+                return `(${bahtWords} BAHT AND ${parts[1]}/100)`;
+            }
+        }
+
+        // Print quotation
+        function printQuotation() {
+            const multiPageElement = document.getElementById('quotation-print-area');
+            const singlePageElement = document.getElementById('quotation-single-page');
+
+            let elementToPrint = null;
+
+            if (multiPageElement && multiPageElement.offsetParent !== null) {
+                elementToPrint = multiPageElement;
+            } else if (singlePageElement && singlePageElement.offsetParent !== null) {
+                elementToPrint = singlePageElement;
+            }
+
+            if (!elementToPrint) {
+                console.error("❌ ไม่พบ element สำหรับ print (ทั้ง multi-page และ single-page ถูกซ่อน)");
+                return;
+            }
+
+            // ดึง Quotation No + Rev.
+            const quoteNoElement = document.querySelector('.quotation .font-normal');
+            let filename = 'quotation.pdf';
+            if (quoteNoElement) {
+                const rawText = quoteNoElement.textContent.trim();
+                const quoteNo = rawText
+                    .replace(/\s+/g, '_')
+                    .replace(/[^\w\-]/g, '');
+                if (quoteNo) {
+                    filename = `${quoteNo}.pdf`;
+                }
+            }
+
+            // ✅ เปิดโหมดพิมพ์
+            document.body.classList.add('print-mode');
+
+            const opt = {
+                margin: 10,
+                filename: filename,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
+            console.log(`📥 Start generating PDF: ${filename}`);
+            html2pdf().set(opt).from(elementToPrint).save()
+                .then(() => {
+                    console.log("✅ PDF generated");
+                })
+                .catch((err) => {
+                    console.error("❌ Error generating PDF", err);
+                })
+                .finally(() => {
+                    // ✅ ปิดโหมดพิมพ์
+                    document.body.classList.remove('print-mode');
+                });
+        }
+
+        function getCategoryNameById(id) {
+            if (!id || typeof id !== 'string') return id || '';
+
+            const found = categories.find(c => c.category_id?.toLowerCase() === id.toLowerCase());
+            return found ? found.name : id;
+        }
+        
+        // Initialize the application
+        init();
+
+        document.getElementById('uploadPdfBtn')?.addEventListener('click', async () => {
+            const input = document.getElementById('drawingPdfInput');
+            const files = input?.files;
+            if (!files || files.length === 0) {
+                alert('กรุณาเลือกไฟล์ PDF หรือ DWG ก่อนอัปโหลด');
+                return;
+            }
+
+            const raw = document.getElementById('quotation-auto')?.value?.trim();
+            if (!raw) {
+                return alert('กรุณาระบุเลขใบเสนอราคา');
+            }
+
+            // 👉 แยก quotation_no และ rev (อาจไม่มี Rev.)
+            let quotation_no = '';
+            let rev = '';
+
+            if (raw.includes('Rev.')) {
+                const [qno, revPart] = raw.split('Rev.');
+                quotation_no = qno.trim();
+                const revParsed = revPart?.trim();
+                rev = (revParsed === '' || isNaN(parseInt(revParsed))) ? 0 : parseInt(revParsed);
+            } else {
+                quotation_no = raw.trim();
+                rev = 0;
+            }
+
+            // ✅ เตรียม FormData
+            const formData = new FormData();
+            for (const file of files) {
+                formData.append('files', file);
+            }
+
+            // ✅ ส่ง rev = '' ถ้าเป็น rev 0 (เพื่อเก็บช่องว่างในชีต)
+            const revToSend = rev === 0 ? '' : rev;
+
+            formData.append('quotation_no', quotation_no);
+            formData.append('rev', revToSend);
+
+            try {
+                const res = await fetch('http://localhost:3000/upload_drawing', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await res.json();
+                if (res.ok) {
+                    alert('✅ อัปโหลดสำเร็จแล้ว');
+                    input.value = '';
+
+                    // โหลด drawings เฉพาะของใบเสนอราคานี้
+                    const drawingFiles = await fetch(`/drawing_files?quotation_no=${quotation_no}&rev=${revToSend}`)
+                        .then(r => r.json());
+
+                    renderQuotationItems(drawingFiles);
+                } else {
+                    alert(`❌ ไม่สำเร็จ: ${result.message || 'unknown error'}`);
+                }
+            } catch (err) {
+                console.error('❌ upload error:', err);
+                alert('เกิดข้อผิดพลาดระหว่างอัปโหลด');
+            }
+        });
+
+        // รับ message จาก add-pipe.html
+        window.addEventListener('message', function (event) {
+            const { type, payload, autoNavigateToCart } = event.data;
+
+            if (type === 'ADD_PIPES_FROM_BUILDER') {
+                const pipeProducts = payload;
+
+                pipeProducts.forEach(pipe => {
+                    const existingPipes = products.filter(p =>
+                        p.category === 'pipe' &&
+                        typeof p.product_id === 'string' &&
+                        p.product_id.startsWith('P')
+                    );
+
+                    const nextPipeNumber = existingPipes.length + 1;
+                    const product_id = `P${nextPipeNumber}`;
+                    const name = `Custom PTFE ${pipe.diameter}" (${pipe.length}mm)`;
+                    const price = parseFloat(pipe.price) || 9.99; // ใช้ราคาจริง ถ้ามี
+
+                    const product = {
+                        product_id,
+                        name,
+                        price,
+                        category: 'pipe',//ยังไม่แน่ใจว่าเป้น pipe หรือ Lined Pipe
+                        diameter: pipe.diameter,
+                        length: pipe.length,
+                        ptfeGrade: pipe.ptfeGrade,
+                        coating: pipe.coating,
+                        flangeConfig: pipe.flangeConfig || pipe.flange || null,
+                        ventHole: pipe.ventHole,
+                        grounding: pipe.grounding,
+                        vacuumRated: pipe.vacuumRated
+                    };
+
+                    products.push(product);
+
+                    // เพิ่มเข้า cart ทันที
+                    cart.push({
+                        ...product,
+                        id: product_id, // สำหรับ cart ใช้ id
+                        quantity: 1
+                    });
+                });
+
+                updateCartSummary();
+
+                if (autoNavigateToCart) {
+                    navigateTo('cart');
+                }
+            }
+        });
+
+        // แสดงรายการใบเสนอราคาเมื่อโหลดเสร็จ
+        document.addEventListener('DOMContentLoaded', () => {
+            const quoteItems = document.getElementById('quote-items');
+            let subtotal = 0;
+
+            cart.forEach((item, index) => {
+                const itemTotal = item.price * item.quantity;
+                subtotal += itemTotal;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="border px-2 py-1">${index + 1}</td>
+                    <td class="border px-2 py-1">${item.id}</td>
+                    <td class="border px-2 py-1">${item.name}</td>
+                    <td>${item.description || '-'}</td>
+                    <td class="border px-2 py-1 text-center">${item.quantity}</td>
+                    <td class="border px-2 py-1 text-center">PCS</td>
+                    <td class="border px-2 py-1 text-right">${item.price.toFixed(2)}</td>
+                    <td class="border px-2 py-1 text-right">${itemTotal.toFixed(2)}</td>
+                `;
+                quoteItems.appendChild(row);
+            });
+
+            const vat = subtotal * 0.07;
+            const total = subtotal + vat;
+
+            // อัปเดตข้อมูลในใบเสนอราคา
+            document.getElementById('quote-subtotal').textContent = subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 });
+            document.getElementById('quote-tax').textContent = vat.toLocaleString(undefined, { minimumFractionDigits: 2 });
+            document.getElementById('quote-total').textContent = total.toLocaleString(undefined, { minimumFractionDigits: 2 });
+
+            if (document.getElementById('quote-total-words')) {
+                document.getElementById('quote-total-words').textContent = numberToWordsBaht(total);
+            }
+        });
+
+        function getMergedProducts() {
+            const grouped = {};
+
+            products.forEach(p => {
+                if (!p || typeof p !== 'object') return;
+
+                const rawCategory = typeof p.category === 'string' ? p.category.trim() : String(p.category || '').trim();
+                const key = rawCategory || 'uncategorized';
+
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(p);
+            });
+
+            return grouped;
+        }
+        
+        async function fetchQuotation() {
+            const setText = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = val || '';
+            };
+
+            const quotationNo = document.getElementById('quotation-no-select')?.value?.trim();
+            const revision = document.getElementById('quotation-rev-select')?.value?.trim();
+
+            if (!quotationNo) {
+                return alert('กรุณาเลือกหมายเลขใบเสนอราคา');
+            }
+
+            let url = `http://localhost:3000/quotation/${quotationNo}`;
+            url += `?rev=${revision || ''}`;  // force rev parameter, แม้จะเป็นช่องว่าง
+
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`ไม่พบใบเสนอราคานี้ (${res.status})`);
+                const data = await res.json();
+
+                cart = data.items.map(item => ({
+                    ...item,
+                    id: item.product_id || item.id || '-',
+                    flangeConfig: item.flangeConfig || item.flange || null
+                }));
+
+                // ✅ โหลด drawing files จาก quotationNo + rev
+                drawingFiles = [];
+                drawingSelections = [];
+
+                try {
+                    const revToSend = (!revision || revision === '0') ? '' : revision;
+                    const drawingRes = await fetch(`/drawing_files?quotation_no=${quotationNo}&rev=${revToSend}`);
+                    drawingFiles = await drawingRes.json();
+                } catch (err) {
+                    console.error('❌ Failed to load drawing files:', err);
+                }
+
+                // ✅ mapping dwg → url สำหรับ dropdown
+                cart.forEach((item, index) => {
+                    const matched = drawingFiles.find(f => {
+                        const dwgFromItem = (item.dwg || '')
+                            .toLowerCase()
+                            .replace(/\s+/g, '_')
+                            .replace(/\.(pdf|dwg)$/i, '')
+                            .replace(/[()]/g, '')
+                            .trim();
+
+                        const dwgFromFile = (f.drawing_name || '')
+                            .toLowerCase()
+                            .replace(/\.(pdf|dwg)$/i, '')
+                            .replace(/\s+/g, '_')
+                            .replace(/[()]/g, '')
+                            .trim();
+
+                        return dwgFromItem && dwgFromItem === dwgFromFile;
+                    });
+
+                    if (matched) {
+                        drawingSelections[index] = matched.drawing_url;
+                    }
+                });
+
+                // ✅ Fill form
+                if (data.customer) {
+                    document.getElementById('customer-name').value = data.customer.name || '';
+                    document.getElementById('customer-email').value = data.customer.email || '';
+                    document.getElementById('customer-phone').value = data.customer.phone || '';
+                    document.getElementById('customer-company').value = data.customer.company || '';
+                    document.getElementById('customer-address').value = data.customer.address || '';
+                    document.getElementById('customer-notes').value = data.customer.notes || '';
+                    document.getElementById('sales-person').value = data.customer.sales_person || '';
+                    document.getElementById('sales-mobile').value = data.customer.sales_mobile || '';
+                    document.getElementById('sales-email').value = data.customer.sales_email || '';
+                    document.getElementById('sales-contact').value = data.customer.sales_contact || '';
+                    document.getElementById('contact-tel').value = data.customer.contact_tel || '';
+                    document.getElementById('contact-email').value = data.customer.contact_email || '';
+                    document.getElementById('delivery-time').value = data.customer.delivery_time || '';
+                    document.getElementById('delivery-term').value = data.customer.delivery_term || '';
+                    document.getElementById('payment-term').value = data.customer.payment_term || '';
+                    document.getElementById('quotation-validity').value = data.customer.quotation_validity || '';
+                    document.getElementById('customer-ref').value = data.customer.customer_ref || '';
+                    document.getElementById('enquiry-ref').value = data.customer.enquiry_ref || '';
+                }
+
+                const quotationInput = document.getElementById('quotation-auto');
+                if (quotationInput) {
+                    quotationInput.value = revision
+                        ? `${quotationNo} Rev. ${revision}`
+                        : quotationNo;
+                }
+
+                const quoteNoEl = document.querySelector('.quotation .font-normal');
+                if (quoteNoEl) {
+                    quoteNoEl.textContent = revision
+                        ? `${quotationNo} Rev. ${revision}`
+                        : quotationNo;
+                }
+
+                const issued = data.issued_date;
+                const fallback = new Date().toLocaleDateString('en-GB');
+                const issuedDate = issued || fallback;
+
+                // ✅ เซตทั้ง textContent และ input
+                setText('quote-date', issuedDate);
+                setText('signature-date', issuedDate);
+
+                const inputIssued = document.getElementById('input-quote-date');
+                if (inputIssued) inputIssued.value = issuedDate;
+
+                const inputSignature = document.getElementById('signature-date');
+                if (inputSignature) inputSignature.value = issuedDate;
+
+                // ✅ Set additional fields for rendering
+                setText('quote-customer-name', data.customer.name);
+                setText('quote-customer-email', data.customer.email);
+                setText('quote-customer-phone', data.customer.phone);
+                setText('quote-customer-company', data.customer.company);
+                setText('quote-customer-address', data.customer.address);
+                setText('quote-notes', data.customer.notes);
+                setText('quote-sales-person', data.customer.sales_person);
+                setText('quote-sales-mobile', data.customer.sales_mobile);
+                setText('quote-sales-email', data.customer.sales_email);
+                setText('quote-sales-contact', data.customer.sales_contact);
+                setText('quote-contact-tel', data.customer.contact_tel);
+                setText('quote-contact-email', data.customer.contact_email);
+                setText('quote-delivery-time', data.customer.delivery_time);
+                setText('quote-delivery-term', data.customer.delivery_term);
+                setText('quote-payment-term', data.customer.payment_term);
+                setText('quote-quotation-validity', data.customer.quotation_validity);
+                setText('quote-customer-ref', data.customer.customer_ref);
+                setText('quote-enquiry-ref', data.customer.enquiry_ref);
+
+                renderCart();
+
+                // ✅ navigate แล้วค่อย render
+                await navigateTo('quotation');
+
+                setTimeout(() => {
+                    renderQuotationItems();
+                    updateCartSummary();
+                }, 0);
+
+                lastSubmittedCartSnapshot = JSON.stringify(cart);
+                lastSubmittedCustomerSnapshot = JSON.stringify({
+                    name: data.customer.name,
+                    email: data.customer.email,
+                    phone: data.customer.phone,
+                    company: data.customer.company,
+                    address: data.customer.address,
+                    notes: data.customer.notes,
+                    sales_person: data.customer.sales_person,
+                    sales_mobile: data.customer.sales_mobile,
+                    sales_email: data.customer.sales_email,
+                    sales_contact: data.customer.sales_contact,
+                    contact_tel: data.customer.contact_tel,
+                    contact_email: data.customer.contact_email,
+                    delivery_time: data.customer.delivery_time,
+                    delivery_term: data.customer.delivery_term,
+                    payment_term: data.customer.payment_term,
+                    quotation_validity: data.customer.quotation_validity,
+                    customer_ref: data.customer.customer_ref,
+                    enquiry_ref: data.customer.enquiry_ref
+                });
+
+            } catch (err) {
+                alert('ไม่พบใบเสนอราคานี้ หรือเกิดข้อผิดพลาด');
+                console.error('❌ Error fetching quotation:', err);
+            }
+        }
+
+        // โหลดใบเสนอราคาที่เคยบันทึกไว้แบบกดเลือกจาก dropdown
+        async function loadQuotationDropdown() {
+                const dropdown = document.getElementById('quotation-no-select');
+                if (!dropdown) return;
+
+                try {
+                    const statusFilter = document.getElementById('quotation-status-filter')?.value || '';
+                    let url = 'http://localhost:3000/quotation_list';
+
+                    if (statusFilter) {
+                        url += `?status=${encodeURIComponent(statusFilter)}`;
+                    }
+
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error('Failed to load quotations');
+                    const list = await res.json();
+
+                    dropdown.innerHTML = '<option value="">-- เลือกใบเสนอราคา --</option>';
+                    list.forEach(qno => {
+                        const option = document.createElement('option');
+                        option.value = qno;
+                        option.textContent = qno;
+                        dropdown.appendChild(option);
+                    });
+                } catch (e) {
+                    console.error('Error loading quotations:', e);
+                }
+        }
+
+        async function renderQuotationItems() {
+            const customerNote = document.getElementById('customer-notes')?.value?.trim() || 'No additional notes.';
+            const raw = document.getElementById('quotation-auto')?.value?.trim();
+            const issuedDateInput = document.getElementById('input-quote-date')?.value?.trim() || '';
+            const signatureDateInput = document.getElementById('signature-date')?.value?.trim() || '';
+
+            let quotationNo = '';
+            let rev = 0;
+
+            if (raw) {
+                if (raw.includes('Rev.')) {
+                    const [qnoPart, revPart] = raw.split('Rev.');
+                    quotationNo = qnoPart?.trim();
+                    const revParsed = revPart?.trim();
+                    rev = (!revParsed || isNaN(parseInt(revParsed))) ? 0 : parseInt(revParsed);
+                } else {
+                    quotationNo = raw.trim();
+                }
+            }
+
+            drawingFiles = [];
+            drawingSelections = [];
+
+            if (quotationNo) {
+                try {
+                    const revToSend = rev === 0 ? '' : rev;
+                    const res = await fetch(`/drawing_files?quotation_no=${quotationNo}&rev=${revToSend}`);
+                    drawingFiles = await res.json();
+
+                    cart.forEach((item, index) => {
+                        const rawDwg = item.dwg;
+                        const dwgFromItem = (rawDwg || '')
+                            .toLowerCase()
+                            .replace(/\.(pdf|dwg)$/i, '')
+                            .replace(/\s+/g, '_')
+                            .replace(/[()]/g, '')
+                            .trim();
+
+                        const matched = drawingFiles.find(f => {
+                            const dwgFromFile = (f.drawing_name || '')
+                                .toLowerCase()
+                                .replace(/\.(pdf|dwg)$/i, '')
+                                .replace(/\s+/g, '_')
+                                .replace(/[()]/g, '')
+                                .trim();
+
+                            return dwgFromItem && dwgFromItem === dwgFromFile;
+                        });
+
+                        if (matched) {
+                            drawingSelections[index] = matched.drawing_url;
+                        }
+                    });
+
+                } catch (err) {
+                    console.error('❌ Failed to load drawing files:', err);
+                }
+            }
+
+            const hasDrawings = drawingFiles.length > 0;
+            const today = new Date().toLocaleDateString('en-GB');
+            const issuedDate = issuedDateInput || document.getElementById('quote-date')?.textContent?.trim() || today;
+            const signatureDate = signatureDateInput || today;
+
+            const totalItems = cart.length;
+
+            const useSinglePageLayout =
+                (totalItems <= 4 && !hasDrawings) ||
+                (totalItems <= 2 && hasDrawings);
+
+            const forceExtraFooterPage =
+                (totalItems >= 3 && totalItems <= 10 && hasDrawings) ||
+                (totalItems >= 5 && totalItems <= 10 && !hasDrawings);
+
+            // ✅ Use multi-page quotation
+            if (!useSinglePageLayout || totalItems >= 11) {
+                renderMultiPageQuotation(cart, customerNote, true, {
+                    quotationNo,
+                    rev,
+                    issuedDate,
+                    signatureDate,
+                    forceExtraFooterPage
+                });
+                return;
+            }
+
+            // ✅ Use single-page layout
+            document.getElementById('quotation-print-area').style.display = 'none';
+            document.getElementById('quotation-single-page').style.display = 'block';
+
+            const quoteItems = document.getElementById('quote-items');
+            if (!quoteItems) {
+                console.error("❌ ไม่พบ element #quote-items ใน single-page layout");
+                return;
+            }
+
+            quoteItems.innerHTML = '';
+
+            cart.forEach((item, index) => {
+                const itemTotal = item.price * item.quantity;
+                const isLast = index === cart.length - 1;
+                const model = item.product_id || item.id || '-';
+
+                const selectedUrl = drawingSelections[index];
+                const selectedName = drawingFiles.find(f => f.drawing_url === selectedUrl)?.drawing_name || '';
+
+                const descriptionHtml = (() => {
+                    const desc = item.description?.trim() || item.detailDescription?.trim() || autoGenerateDescription(item);
+                    const length = item.length;
+                    let finalDesc = desc;
+
+                    if (/L\s*=\s*$/.test(desc) && length) {
+                        finalDesc = desc + `${length}mm`;
+                    } else if (!/L\s*=/.test(desc) && length) {
+                        finalDesc = desc + `, L=${length}mm`;
+                    }
+
+                    const isPrinting = window.matchMedia('print').matches || document.body.classList.contains('print-mode');
+
+                    let drawingPart = '';
+                    if (hasDrawings) {
+                        if (isPrinting) {
+                            drawingPart = selectedName
+                                ? `<div class="text-xs mt-1">Dwg: ${selectedName}</div>`
+                                : '';
+                        } else {
+                            drawingPart = `
+                                <div class="text-xs mt-1">
+                                    Dwg:
+                                    <select class="px-1 py-1 text-xs rounded ml-2" data-index="${index}">
+                                        <option value="">-- Select Drawing --</option>
+                                        ${drawingFiles.map(f => `
+                                            <option value="${f.drawing_url}" ${f.drawing_url === selectedUrl ? 'selected' : ''}>
+                                                ${f.drawing_name.replace(/\.(pdf|dwg)$/i, '')}
+                                            </option>
+                                        `).join('')}
+                                    </select>
+                                </div>
+                            `;
+                        }
+                    }
+
+                    const noteHtml = isLast ? `
+                        <br>******************************************<br>
+                        <strong style="font-size:10px;">NOTE :</strong><br>
+                        <span style="font-size:10px;">${customerNote.replace(/\n/g, '<br>')}</span>
+                    ` : '';
+
+                    return `${finalDesc}${drawingPart}${noteHtml}`;
+                })();
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-2 py-1 align-top text-xs">${index + 1}</td>
+                    <td class="px-2 py-1 align-top text-xs">${model}</td>
+                    <td class="px-2 py-1 align-top text-xs">${descriptionHtml}</td>
+                    <td class="px-2 py-1 text-center align-top text-xs">${item.quantity || 1}</td>
+                    <td class="px-2 py-1 text-center align-top text-xs">PCS</td>
+                    <td class="px-2 py-1 text-right align-top text-xs">${Number(item.price || 0).toFixed(2)}</td>
+                    <td class="px-2 py-1 text-right align-top text-xs">${Number(itemTotal || 0).toFixed(2)}</td>
+                `;
+                quoteItems.appendChild(row);
+            });
+
+            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const tax = subtotal * 0.07;
+            const total = subtotal + tax;
+
+            document.getElementById('quote-subtotal').textContent = subtotal.toLocaleString(undefined, { minimumFractionDigits: 2 });
+            document.getElementById('quote-tax').textContent = tax.toLocaleString(undefined, { minimumFractionDigits: 2 });
+            document.getElementById('quote-total').textContent = total.toLocaleString(undefined, { minimumFractionDigits: 2 });
+
+            if (document.getElementById('quote-total-words')) {
+                document.getElementById('quote-total-words').textContent = numberToWordsBaht(total);
+            }
+        }
+
+        async function renderDrawingDropdowns(quotationNo) {
+            const drawingFiles = await fetch(`/drawing_files?quotation_no=${quotationNo}`)
+                .then(res => res.json());
+
+            const tbody = document.getElementById('quote-items');
+            const rows = tbody.querySelectorAll('tr');
+
+            rows.forEach((row, index) => {
+                // สร้างแถวใหม่เพื่อแสดง dropdown
+                const dropdownRow = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 7;
+                cell.innerHTML = `
+                <div class="text-xs mt-1">
+                    Drawing File:
+                    <select class="border px-2 py-1 text-xs rounded ml-2">
+                    <option>-- Select Drawing --</option>
+                    ${drawingFiles.map(f => `<option value="${f}">${f}</option>`).join('')}
+                    </select>
+                </div>
+                `;
+                dropdownRow.appendChild(cell);
+                // เพิ่มแถว dropdown ถัดจากรายการสินค้า
+                row.insertAdjacentElement('afterend', dropdownRow);
+            });
+        }
+
+        async function generateQuotationNo() {
+            const now = new Date();
+            const year = String(now.getFullYear()).slice(-2);  // '25'
+            const month = String(now.getMonth() + 1).padStart(2, '0');  // '07'
+            const prefix = `QT${year}${month}T-`;
+
+            try {
+                // 🔍 ดึงหมายเลขล่าสุดที่ใช้ prefix นี้
+                const res = await fetch(`http://localhost:3000/latest_quotation_no?prefix=${prefix}`);
+                if (!res.ok) throw new Error("Failed to fetch latest quotation number");
+
+                const data = await res.json();
+                const last = data.last || '';  // fallback เป็น string ว่าง
+
+                let nextNumber = 1;
+
+                if (last && last.startsWith(prefix)) {
+                    const lastDigits = parseInt(last.slice(prefix.length));
+                    if (!isNaN(lastDigits)) {
+                        nextNumber = lastDigits + 1;
+                    }
+                }
+
+                const newQuotationNo = `${prefix}${String(nextNumber).padStart(4, '0')}`;
+
+                // ✅ แสดง Quotation No (ไม่มี Rev.)
+                const quotationInput = document.getElementById('quotation-auto');
+                if (quotationInput) {
+                    quotationInput.value = newQuotationNo;
+                }
+
+            } catch (err) {
+                console.error("❌ Error generating quotation no:", err);
+                alert("Cannot auto-generate quotation number");
+            }
+        }
+
+        async function loadDrawingsForQuotation(quotationNo) {
+            const res = await fetch(`/drawing_files?quotation_no=${quotationNo}`);
+            return await res.json(); // ได้ array: ['SO2505-0009.pdf', 'ABC123.pdf']
+        }
+
+        function renderMultiPageQuotation(cart, customerNote = '', isDrawingMode = false, {
+            quotationNo = '',
+            rev = 0,
+            issuedDate = '',
+            signatureDate = ''
+        } = {}) {
+            const totalItems = cart.length;
+            const hasDrawings = drawingFiles.length > 0;
+
+            const is3to7WithDrawings = totalItems >= 3 && totalItems <= 7 && hasDrawings;
+            const is8to10WithDrawings = totalItems >= 8 && totalItems <= 10 && hasDrawings;
+            const is5to10NoDrawings = totalItems >= 5 && totalItems <= 10 && !hasDrawings;
+            const isMoreThan10 = totalItems >= 11;
+
+            let pages = [];
+            let remainingItems = [...cart];
+
+            if (isMoreThan10) {
+                for (let i = 0; i < remainingItems.length; i += 10) {
+                    pages.push(remainingItems.slice(i, i + 10));
+                }
+
+                const lastPage = pages[pages.length - 1];
+                const lastDigit = lastPage.length % 10;
+
+                if ([4, 5, 6, 7, 8, 9, 0].includes(lastDigit)) {
+                    pages.push(null); // เพิ่มหน้าใหม่สำหรับ full footer
+                }
+            } else {
+                let maxFirstPageItems = 10;
+                if (is8to10WithDrawings) maxFirstPageItems = 8;
+
+                if (totalItems > maxFirstPageItems) {
+                    pages.push(remainingItems.slice(0, maxFirstPageItems));
+                    remainingItems = remainingItems.slice(maxFirstPageItems);
+                } else {
+                    pages.push(remainingItems);
+                    remainingItems = [];
+                }
+
+                for (let i = 0; i < remainingItems.length; i += 10) {
+                    pages.push(remainingItems.slice(i, i + 10));
+                }
+
+                if ((is3to7WithDrawings || is5to10NoDrawings)) {
+                    pages.push(null); // เพิ่มหน้าใหม่สำหรับ full footer
+                }
+            }
+
+            const printArea = document.getElementById('quotation-print-area');
+            printArea.innerHTML = '';
+            printArea.style.display = 'block';
+            document.getElementById('quotation-single-page').style.display = 'none';
+
+            const customerInfo = {
+                name: document.getElementById('customer-name')?.value,
+                phone: document.getElementById('customer-phone')?.value,
+                email: document.getElementById('customer-email')?.value,
+                customerRef: document.getElementById('customer-ref')?.value,
+                enquiryRef: document.getElementById('enquiry-ref')?.value,
+                company: document.getElementById('customer-company')?.value,
+                address: document.getElementById('customer-address')?.value,
+                salesPerson: document.getElementById('sales-person')?.value,
+                salesMobile: document.getElementById('sales-mobile')?.value,
+                salesEmail: document.getElementById('sales-email')?.value,
+                contactPerson: document.getElementById('sales-contact')?.value,
+                contactTel: document.getElementById('contact-tel')?.value,
+                contactEmail: document.getElementById('contact-email')?.value,
+            };
+
+            const terms = {
+                deliveryTime: document.getElementById('delivery-time')?.value,
+                deliveryTerm: document.getElementById('delivery-term')?.value,
+                paymentTerm: document.getElementById('payment-term')?.value,
+                validity: document.getElementById('quotation-validity')?.value,
+            };
+
+            const total = cart.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0);
+            const totalWords = numberToWordsBaht(total);
+
+            let globalIndex = 0;
+
+            pages.forEach((items, pageIndex) => {
+                const isFirstPage = pageIndex === 0;
+                const isLastPage = pageIndex === pages.length - 1;
+                const isFooterOnlyPage = items === null;
+
+                // ✅ เงื่อนไขแสดง full footer
+                let isFullFooterPage = (() => {
+                    if (isFooterOnlyPage) return true;
+
+                    const lastPageItems = items?.length || 0;
+
+                    if (isMoreThan10 && isLastPage && lastPageItems <= 3) return true;
+                    if (is8to10WithDrawings && isLastPage && lastPageItems <= 3) return true;
+
+                    return false;
+                })();
+
+                const header = renderQuotationHeader({
+                    quotationNo,
+                    rev,
+                    issuedDate,
+                    pageNumber: pageIndex + 1,
+                    totalPages: pages.length,
+                    customerInfo,
+                    showCustomerDetail: isFirstPage
+                });
+
+                let tableBody = '';
+                if (!isFooterOnlyPage) {
+                    const tableHead = `
+                        <table class="w-full border-collapse text-xs mt-4">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="border-b border-black px-2 py-1 align-top">Item</th>
+                                    <th class="border-b border-black px-2 py-1 align-top">Model</th>
+                                    <th class="border-b border-black px-2 py-1 align-top">Description</th>
+                                    <th class="border-b border-black px-2 py-1 align-top">Qty.</th>
+                                    <th class="border-b border-black px-2 py-1 align-top">Unit</th>
+                                    <th class="border-b border-black px-2 py-1 align-top">Unit Price</th>
+                                    <th class="border-b border-black px-2 py-1 align-top">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+
+                    const indexedItems = items.map((item, i) => ({
+                        ...item,
+                        _globalIndex: globalIndex + i + 1,
+                        _isLastItem: (globalIndex + i === cart.length - 1)
+                    }));
+
+                    const tableRows = renderQuotationItemsRows(indexedItems, drawingFiles, drawingSelections, customerNote, globalIndex, isDrawingMode);
+                    globalIndex += items.length;
+
+                    const tableFooter = '</tbody></table>';
+                    tableBody = tableHead + tableRows + tableFooter;
+                }
+
+                const footer = isFullFooterPage
+                    ? renderQuotationFooter(cart, totalWords, terms, signatureDate)
+                    : renderQuotationFooterMinimal();
+
+                const page = document.createElement('div');
+                page.classList.add('quotation-page');
+                Object.assign(page.style, {
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    height: '277mm',
+                    padding: '2mm'
+                });
+
+                page.innerHTML = `
+                    <div class="quotation-header">${header}</div>
+                    <div class="quotation-body" style="flex:1">${tableBody}</div>
+                    <div class="quotation-footer">${footer}</div>
+                `;
+
+                printArea.appendChild(page);
+
+                if (isDrawingMode) {
+                    page.querySelectorAll('.dwg-select').forEach(select => {
+                        const index = parseInt(select.getAttribute('data-index'));
+                        drawingSelections[index] = select.value;
+                        localStorage.setItem('drawingSelections', JSON.stringify(drawingSelections));
+                    });
+                }
+            });
+        }
+
+        // 🔷 1. Header
+        function renderQuotationHeader({
+            quotationNo = '',
+            rev = 0,
+            issuedDate = '',
+            pageNumber = 1,
+            totalPages = 1,
+            customerInfo = {},
+            showCustomerDetail = true
+        }) {
+            return `
+                <div class="mb-4">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-4">
+                            <img src="/images/m-wave.jpg" alt="M-Wave Logo" class="h-10 w-10 object-contain" />
+                            <h1 class="text-2xl font-semibold">Mwave</h1>
+                        </div>
+                    </div>
+                    <hr class="my-3 border-t border-gray-400 w-[800px] mx-auto" />
+                </div>
+
+                <div class="flex justify-between items-start mb-6 text-xs leading-5">
+                    <div>
+                        <h2 class="text-lg font-bold mb-1">Quotation</h2>
+                        <p class="font-semibold">${customerInfo.company || ''}</p>
+                        <p class="pt-2">${customerInfo.address || ''}</p>
+                    </div>
+                    <div class="flex flex-col items-center space-y-2 text-xs">
+                        <p class="text-center"><strong>Page :</strong> ${pageNumber} of ${totalPages}</p>
+                        <p class="text-center">For further inquiries, please specify :</p>
+                        <div class="w-[300px] bg-blue-100 rounded-lg p-4 border border-blue-500 inline-block shadow-sm text-left">
+                            <p class="font-bold">
+                                <span>Quotation No.:</span>
+                                <span class="ml-2 font-normal">${quotationNo || '-'}${rev ? ' Rev. ' + rev : ''}</span>
+                            </p>
+                            <p class="font-bold">
+                                <span>Issued Date :</span>
+                                <span class="ml-2 font-normal">${issuedDate || '-'}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                ${showCustomerDetail ? `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-x-4 text-xs leading-5 mb-2">
+                    <div class="md:col-span-2">
+                        <p><strong>Attn :</strong> ${customerInfo.name || ''}</p>
+                        <p><strong>Tel :</strong> ${customerInfo.phone || ''}</p>
+                        <p><strong>Email :</strong> ${customerInfo.email || ''}</p>
+                        <p><strong>Customer Ref. :</strong> ${customerInfo.customerRef || ''}</p>
+                        <p><strong>Enquiry Ref. :</strong> ${customerInfo.enquiryRef || ''}</p>
+                        <p style="font-size: 10px; line-height: 1.7;">
+                            With reference to your enquiry, we are pleased to offer as below for your consideration
+                        </p>
+                    </div>
+                    <div class="md:col-span-1 md:justify-self-start -ml-12">
+                        <p><strong>Sales Person :</strong> ${customerInfo.salesPerson || ''}</p>
+                        <p><strong>Mobile :</strong> ${customerInfo.salesMobile || ''}</p>
+                        <p><strong>E-Mail :</strong> ${customerInfo.salesEmail || ''}</p>
+                        <p><strong>Contact :</strong> ${customerInfo.contactPerson || ''}</p>
+                        <p><strong>Tel :</strong> ${customerInfo.contactTel || ''}</p>
+                        <p><strong>E-Mail :</strong> ${customerInfo.contactEmail || ''}</p>
+                    </div>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        // 🔷 2. Items Table
+        function renderQuotationItemsRows(cart, drawingFiles, drawingSelections, customerNote, globalOffset = 0, isDrawingMode = false) {
+            return cart.map((item, index) => {
+                const price = Number(item.price || 0);
+                const quantity = Number(item.quantity || 0);
+                const itemTotal = price * quantity;
+                const model = item.product_id || item.id || '-';
+                const desc = item.description?.trim() || autoGenerateDescription(item);
+                const length = item.length;
+                const finalDesc = length ? (desc.includes('L=') ? desc : `${desc}, L=${length}mm`) : desc;
+
+                const globalIndex = globalOffset + index;
+                const selectedUrl = drawingSelections[globalIndex];
+                const selectedName = drawingFiles.find(f => f.drawing_url === selectedUrl)?.drawing_name || '';
+
+                let drawingPart = '';
+                if (drawingFiles.length > 0) {
+                    if (isDrawingMode) {
+                        const drawingOptions = drawingFiles.map(f => {
+                            const cleanName = f.drawing_name?.replace(/\.(pdf|dwg)$/i, '') || '';
+                            const selected = f.drawing_url === selectedUrl ? 'selected' : '';
+                            return `<option value="${f.drawing_url}" ${selected}>${cleanName}</option>`;
+                        }).join('');
+
+                        drawingPart = `
+                            <div class="text-xs mt-1">
+                                Dwg:
+                                <select data-index="${globalIndex}" class="dwg-select px-1 py-1 text-xs rounded ml-2">
+                                    <option value="">-- Select Drawing --</option>
+                                    ${drawingOptions}
+                                </select>
+                            </div>`;
+                    } else if (selectedName) {
+                        drawingPart = `<div class="text-xs mt-1">Dwg: ${selectedName}</div>`;
+                    }
+                }
+
+                const notePart =
+                    item._isLastItem && customerNote
+                        ? `<br/>******************************************<br/><strong style="font-size:10px;">NOTE :</strong><br/><span style="font-size:10px;">${customerNote.replace(/\n/g, '<br>')}</span>`
+                        : '';
+
+                return `
+                <tr>
+                    <td class="px-2 py-1 align-top text-center">${item._globalIndex}</td>
+                    <td class="px-2 py-1 align-top">${model}</td>
+                    <td class="px-2 py-1 align-top">${finalDesc}${drawingPart}${notePart}</td>
+                    <td class="px-2 py-1 align-top text-center">${quantity}</td>
+                    <td class="px-2 py-1 align-top text-center">PCS</td>
+                    <td class="px-2 py-1 align-top text-right">${price.toFixed(2)}</td>
+                    <td class="px-2 py-1 align-top text-right">${itemTotal.toFixed(2)}</td>
+                </tr>
+                `;
+            }).join('');
+        }
+
+        // 🔷 3. Footer
+        function renderQuotationFooter(cart, totalWords = '', terms = {}, signatureDate = '') {
+            const subtotal = cart.reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 0), 0);
+            const tax = subtotal * 0.07;
+            const total = subtotal + tax;
+
+            return `
+                <div class="quotation-footer">
+                    <hr class="pb-1 border-t border-t-[0.2px] border-gray-500 mx-auto" />
+
+                    <div class="text-xs space-y-1">
+                        <p><strong>Delivery Time :</strong> ${terms.deliveryTime || '-'}</p>
+                        <p><strong>Delivery Term :</strong> ${terms.deliveryTerm || '-'}</p>
+                        <p><strong>Payment Term :</strong> ${terms.paymentTerm || '-'}</p>
+                        <p><strong>Quotation Validity :</strong> ${terms.validity || '-'}</p>
+                    </div>
+
+                    <hr class="border-t border-black my-1" />
+
+                    <div class="flex justify-between items-start text-xs mt-1 gap-4">
+                        <div class="flex flex-col justify-start max-w-[65%]">
+                            <p class="italic text-xs">(${totalWords || '-'})</p>
+                            <p class="mt-10">Kindly go through the quotation and we look forward to your favorable reply.</p>
+                        </div>
+                        <div class="space-y-1 text-right min-w-[220px] text-xs">
+                            <div class="pb-2 flex justify-between"><span class="font-semibold">Total</span><span>${subtotal.toFixed(2)}</span></div>
+                            <div class="pb-2 flex justify-between"><span class="font-semibold">VAT (7%)</span><span>${tax.toFixed(2)}</span></div>
+                            <div class="flex justify-between font-bold"><span>Total Amount</span><span>${total.toFixed(2)}</span></div>
+                        </div>
+                    </div>
+
+                    <p class="mt-4 font-bold text-xs">Best Regards,</p>
+
+                    <div class="my-2 flex justify-end text-xs">
+                        <div class="text-center">
+                            <p class="font-bold">DUSADEE.MWAVE</p>
+                            <div class="w-[160px] h-[1px] bg-black my-1 mx-auto"></div>
+                            <p class="font-semibold">Authorized Signature</p>
+                            <p class="mt-1">Date : <strong>${signatureDate || '-'}</strong></p>
+                        </div>
+                    </div>
+
+                    <hr class="my-6 border-t border-gray-300" />
+                    ${renderQuotationFooterMinimal(true)}
+                </div>
+            `;
+        }
+
+        function renderQuotationFooterMinimal(skipHr = false) {
+            return `
+                ${!skipHr ? '<hr class="my-2 border-t border-gray-300" />' : ''}
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs text-gray-800">
+                <div class="flex items-start gap-2">
+                    <img src="/images/location-logo.jpg" alt="Location Icon" class="h-4 w-4 mt-0.5 object-contain" />
+                    <div>
+                    <p><strong>Nonthaburi (Head) Office:</strong> 73/4</p>
+                    <p>Moo. 1 Bangkruay-Sainoi Rd.,</p>
+                    <p style="white-space: nowrap;">Banglane, Bangyai, Nonthaburi 11140</p>
+                    <p>Phone : +66 2147 4747</p>
+                    <p>Fax : +66 2921 5402</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2 md:justify-self-center">
+                    <img src="/images/location-logo.jpg" alt="Location Icon" class="h-4 w-4 mt-0.5 object-contain" />
+                    <div>
+                    <p><strong>Rayong Office:</strong> 49/19</p>
+                    <p>Sukhumvit Rd., Nern-Pra,</p>
+                    <p>Muang, Rayong 21150</p>
+                    <p>Phone : +66 3894 7271</p>
+                    <p>Fax : +66 3894 7275</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-2">
+                    <img src="/images/world_icon.png" alt="Globe Icon" class="h-4 w-4 mt-0.5 object-contain" />
+                    <div>
+                    <p><strong>URL:</strong> www.mwavegroup.com</p>
+                    <p><strong>Email:</strong> sales@mwavegroup.com</p>
+                    </div>
+                </div>
+                </div>
+            `;
+        }
+
+        document.addEventListener('change', e => {
+            if (e.target.matches('select[data-index]')) {
+                const index = e.target.dataset.index;
+                drawingSelections[index] = e.target.value;
+            }
+        });
+
+        // ✅ ฟังก์ชันเรียกตอนกด print เพื่อบันทึกชื่อไฟล์ไปยังชีต
+        async function saveSelectedDrawingsToSheet(drawingFiles) {
+            const raw = document.getElementById('quotation-auto')?.value?.trim();
+            if (!raw) return;
+
+            const [qnoPart, revPart] = raw.split('Rev.');
+            const quotation_no = qnoPart?.trim();
+            const rev = revPart?.trim();
+
+            // ✅ Normalize revision: ถ้าไม่มี Rev หรือว่าง → เป็นช่องว่าง ''
+            const normalizedRev = (!rev || isNaN(parseInt(rev))) ? '' : rev;
+
+            if (!quotation_no) return;
+
+            const rows = Object.entries(drawingSelections).map(([index, drawingUrl]) => {
+                const item = cart[Number(index)];
+                const product_id = item?.product_id || item?.id || '';
+
+                // ✅ หา drawing_name จาก drawing_url
+                const matched = drawingFiles.find(f => f.drawing_url === drawingUrl);
+                const drawing_name = matched?.drawing_name || '';
+
+                return [quotation_no, normalizedRev, product_id, drawing_name];
+            });
+
+            if (rows.length === 0) return;
+
+            try {
+                const res = await fetch('/update_dwg_column', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rows })
+                });
+
+                const result = await res.json();
+                if (!res.ok) throw result;
+                console.log('✅ Saved drawing names to sheet:', result);
+            } catch (err) {
+                console.error('❌ Failed to save DWG:', err);
+            }
+        }
+
+        document.addEventListener('change', e => {
+            if (e.target.matches('select[data-index]')) {
+                const index = e.target.dataset.index;
+                drawingSelections[index] = e.target.value;
+            }
+        });
+
+    </script>
+</body>
+</html>

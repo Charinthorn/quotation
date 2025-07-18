@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PTFE Pipe Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a192f;
+            color: #e6f1ff;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        .neon-border {
+            border: 2px solid #39ff14;
+            box-shadow: 0 0 5px #39ff14, 0 0 10px #39ff14;
+        }
+        
+        .neon-text {
+            color: #39ff14;
+            text-shadow: 0 0 5px rgba(57, 255, 20, 0.7);
+        }
+        
+        .toggle-btn {
+            position: relative;
+            width: 50px;
+            height: 26px;
+            border-radius: 13px;
+            background-color: #1e3a5f;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .toggle-btn::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: #8892b0;
+            top: 3px;
+            left: 3px;
+            transition: all 0.3s;
+        }
+        
+        .toggle-btn.active {
+            background-color: #39ff14;
+            box-shadow: 0 0 5px #39ff14, 0 0 10px #39ff14;
+        }
+        
+        .toggle-btn.active::after {
+            background-color: #fff;
+            transform: translateX(24px);
+        }
+        
+        .step-indicator {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background-color: #1e3a5f;
+            color: #8892b0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .step-indicator.active {
+            background-color: #39ff14;
+            color: #0a192f;
+            box-shadow: 0 0 5px #39ff14, 0 0 10px #39ff14;
+        }
+        
+        .step-indicator.completed {
+            background-color: #39ff14;
+            color: #0a192f;
+        }
+        
+        .step-connector {
+            flex-grow: 1;
+            height: 2px;
+            background-color: #1e3a5f;
+            transition: all 0.3s;
+        }
+        
+        .step-connector.active {
+            background-color: #39ff14;
+            box-shadow: 0 0 5px #39ff14, 0 0 10px #39ff14;
+        }
+        
+        .config-step {
+            display: none;
+        }
+        
+        .config-step.active {
+            display: block;
+        }
+        
+        .selection-btn {
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .selection-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .selection-btn.selected {
+            border: 2px solid #39ff14;
+            box-shadow: 0 0 5px #39ff14, 0 0 10px #39ff14;
+        }
+        
+        .selection-btn.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background-color: #39ff14;
+            color: #0a192f;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1e3a5f;
+            border-radius: 4px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #39ff14;
+            border-radius: 4px;
+        }
+        
+        .nav-btn {
+            transition: all 0.2s;
+        }
+        
+        .nav-btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .order-horizontal {
+            display: flex;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto px-4 py-6 h-full flex flex-col">
+        <header class="mb-4">
+            <h1 class="text-3xl font-bold text-center neon-text">PTFE Pipe Builder</h1>
+        </header>
+        
+        <!-- Progress Indicator -->
+        <div class="flex items-center justify-between mb-6 px-4">
+            <div class="step-indicator active" id="step1-indicator">1</div>
+            <div class="step-connector" id="connector1-2"></div>
+            <div class="step-indicator" id="step2-indicator">2</div>
+            <div class="step-connector" id="connector2-3"></div>
+            <div class="step-indicator" id="step3-indicator">3</div>
+            <div class="step-connector" id="connector3-4"></div>
+            <div class="step-indicator" id="step4-indicator">4</div>
+            <div class="step-connector" id="connector4-5"></div>
+            <div class="step-indicator" id="step5-indicator">5</div>
+        </div>
+        
+        <div class="flex-1 grid grid-cols-12 gap-4">
+            <!-- Main Configuration Area -->
+            <div class="col-span-12 md:col-span-8 bg-[#172a46] rounded-lg p-4 flex flex-col">
+                <!-- Step 1: Diameter Selection -->
+                <div class="config-step active" id="step1">
+                    <h2 class="text-xl font-semibold mb-4">Step 1: Select Pipe Diameter</h2>
+                    <div class="grid grid-cols-5 gap-4">
+                        <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-24 flex flex-col items-center justify-center" data-diameter="3/4">
+                            <span class="text-2xl font-bold">¾"</span>
+                            <span class="text-xs text-gray-300 mt-1">19.05 mm</span>
+                        </button>
+                        <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-24 flex flex-col items-center justify-center" data-diameter="1">
+                            <span class="text-2xl font-bold">1"</span>
+                            <span class="text-xs text-gray-300 mt-1">25.4 mm</span>
+                        </button>
+                        <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-24 flex flex-col items-center justify-center" data-diameter="1-1/2">
+                            <span class="text-2xl font-bold">1½"</span>
+                            <span class="text-xs text-gray-300 mt-1">38.1 mm</span>
+                        </button>
+                        <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-24 flex flex-col items-center justify-center" data-diameter="2">
+                            <span class="text-2xl font-bold">2"</span>
+                            <span class="text-xs text-gray-300 mt-1">50.8 mm</span>
+                        </button>
+                        <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-24 flex flex-col items-center justify-center" data-diameter="3">
+                            <span class="text-2xl font-bold">3"</span>
+                            <span class="text-xs text-gray-300 mt-1">76.2 mm</span>
+                        </button>
+                        <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-24 flex flex-col items-center justify-center" data-diameter="4">
+                            <span class="text-2xl font-bold">4"</span>
+                            <span class="text-xs text-gray-300 mt-1">101.6 mm</span>
+                        </button>
+                        <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-24 flex flex-col items-center justify-center" data-diameter="6">
+                            <span class="text-2xl font-bold">6"</span>
+                            <span class="text-xs text-gray-300 mt-1">152.4 mm</span>
+                        </button>
+                        <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-24 flex flex-col items-center justify-center" data-diameter="8">
+                            <span class="text-2xl font-bold">8"</span>
+                            <span class="text-xs text-gray-300 mt-1">203.2 mm</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Step 2: Length and PTFE Grade -->
+                <div class="config-step" id="step2">
+                    <h2 class="text-xl font-semibold mb-4">Step 2: Specify Length & PTFE Grade</h2>
+                    <div class="grid grid-cols-1 gap-6">
+                        <div>
+                            <label class="block text-sm mb-2">Pipe Length</label>
+                            <div class="flex items-center">
+                                <input type="number" id="pipeLength" class="w-full bg-[#0a192f] border border-[#1e3a5f] rounded-lg p-3 text-white focus:outline-none focus:neon-border text-lg" placeholder="Enter length">
+                                <span class="ml-2 text-lg font-medium">mm</span>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm mb-3">PTFE Grade</label>
+                            <div class="grid grid-cols-2 gap-4">
+                                <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-24 flex flex-col items-center justify-center" data-grade="Virgin">
+                                    <span class="text-xl font-bold">Virgin PTFE</span>
+                                    <span class="text-xs text-gray-300 mt-1">Standard grade</span>
+                                </button>
+                                <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-24 flex flex-col items-center justify-center" data-grade="Conductive">
+                                    <span class="text-xl font-bold">Conductive PTFE</span>
+                                    <span class="text-xs text-gray-300 mt-1">Anti-static properties</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Coating -->
+                <div class="config-step" id="step3">
+                    <h2 class="text-xl font-semibold mb-4">Step 3: Select Coating</h2>
+                    <div class="grid grid-cols-1 gap-6">
+                        <div class="grid grid-cols-2 gap-4">
+                            <!-- Default coating button -->
+                            <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-24 flex flex-col items-center justify-center" data-coating="Default">
+                                <span class="text-xl font-bold">Default Coating</span>
+                                <span class="text-xs text-gray-300 mt-1">Standard finish</span>
+                            </button>
+
+                            <!-- Custom RAL input area -->
+                            <div class="bg-[#1e3a5f] rounded-lg p-4 flex flex-col">
+                                <label class="block text-sm mb-2">Custom RAL Color</label>
+
+                                <!-- Input group -->
+                                <div class="flex items-center gap-x-3">
+                                    <input type="text" id="ralCode" class="w-full bg-[#0a192f] border border-[#1e3a5f] rounded-lg p-3 text-white focus:outline-none focus:neon-border text-lg" placeholder="Enter RAL code">
+                                    <input type="color" id="ralColorPicker" class="w-10 h-10 rounded-lg border border-white bg-transparent cursor-pointer p-0" title="Pick custom color">
+                                </div>
+
+                                <!-- Color preview (moved below) -->
+                                <div id="ralColorPreview" class="w-10 h-10 mt-3 rounded border border-white self-end" style="background-color: transparent;"></div>
+                            </div>
+                        </div>
+                        <div class="bg-[#0a192f] rounded-lg p-4">
+                            <h3 class="text-sm font-medium mb-2">Common RAL Colors</h3>
+                            <div class="grid grid-cols-8 gap-2">
+                                <div class="ral-color-btn w-full h-8 rounded cursor-pointer bg-[#F3E03B]" data-ral="1021" title="RAL 1021 - Rape Yellow"></div>
+                                <div class="ral-color-btn w-full h-8 rounded cursor-pointer bg-[#DC4C28]" data-ral="2002" title="RAL 2002 - Vermilion"></div>
+                                <div class="ral-color-btn w-full h-8 rounded cursor-pointer bg-[#0E518D]" data-ral="5005" title="RAL 5005 - Signal Blue"></div>
+                                <div class="ral-color-btn w-full h-8 rounded cursor-pointer bg-[#21883A]" data-ral="6024" title="RAL 6024 - Traffic Green"></div>
+                                <div class="ral-color-btn w-full h-8 rounded cursor-pointer bg-[#8F4E35]" data-ral="8004" title="RAL 8004 - Copper Brown"></div>
+                                <div class="ral-color-btn w-full h-8 rounded cursor-pointer bg-[#282828]" data-ral="9005" title="RAL 9005 - Jet Black"></div>
+                                <div class="ral-color-btn w-full h-8 rounded cursor-pointer bg-[#FFFFFF]" data-ral="9010" title="RAL 9010 - Pure White"></div>
+                                <div class="ral-color-btn w-full h-8 rounded cursor-pointer bg-[#7E7B52]" data-ral="7003" title="RAL 7003 - Moss Grey"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 4: Flange Configuration -->
+                <div class="config-step" id="step4">
+                    <h2 class="text-xl font-semibold mb-4">Step 4: Flange Configuration</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-32 flex flex-col items-center justify-center" data-flange="Fixed/Loose">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="6" cy="12" r="4" fill="#39ff14"/>
+                                <circle cx="18" cy="12" r="4" fill="none"/>
+                            </svg>
+                            <span class="text-lg font-bold">Fixed/Loose</span>
+                            <span class="text-xs text-gray-300 mt-1">Fixed flange on left, loose on right</span>
+                        </button>
+                        <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-32 flex flex-col items-center justify-center" data-flange="Fixed/Fixed">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="6" cy="12" r="4" fill="#39ff14"/>
+                                <circle cx="18" cy="12" r="4" fill="#39ff14"/>
+                            </svg>
+                            <span class="text-lg font-bold">Fixed/Fixed</span>
+                            <span class="text-xs text-gray-300 mt-1">Fixed flanges on both ends</span>
+                        </button>
+                        <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-32 flex flex-col items-center justify-center" data-flange="Loose/Fixed">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="6" cy="12" r="4" fill="none"/>
+                                <circle cx="18" cy="12" r="4" fill="#39ff14"/>
+                            </svg>
+                            <span class="text-lg font-bold">Loose/Fixed</span>
+                            <span class="text-xs text-gray-300 mt-1">Loose flange on left, fixed on right</span>
+                        </button>
+                        <button class="selection-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] rounded-lg p-4 text-center h-32 flex flex-col items-center justify-center" data-flange="Custom">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mb-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 6V2m0 20v-4M6 12H2m20 0h-4m-8 0a2 2 0 100-4 2 2 0 000 4z" stroke="#39ff14"/>
+                            </svg>
+                            <span class="text-lg font-bold">Custom</span>
+                            <span class="text-xs text-gray-300 mt-1">Special flange configuration</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Step 5: Additional Features -->
+                <div class="config-step" id="step5">
+                    <h2 class="text-xl font-semibold mb-4">Step 5: Additional Features</h2>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="bg-[#1e3a5f] rounded-lg p-4 flex flex-col items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M12 8v8M8 12h8"/>
+                            </svg>
+                            <span class="text-lg font-medium mb-2">Vent Hole</span>
+                            <div class="toggle-btn w-12 h-6" id="ventHoleToggle" data-feature="ventHole"></div>
+                        </div>
+                        <div class="bg-[#1e3a5f] rounded-lg p-4 flex flex-col items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 12h14M12 5v14M7.5 7.5l9 9M16.5 7.5l-9 9"/>
+                            </svg>
+                            <span class="text-lg font-medium mb-2">Grounding</span>
+                            <div class="toggle-btn w-12 h-6" id="groundingToggle" data-feature="grounding"></div>
+                        </div>
+                        <div class="bg-[#1e3a5f] rounded-lg p-4 flex flex-col items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 2v6M12 22v-6M4.93 4.93l4.24 4.24M14.83 14.83l4.24 4.24M2 12h6M22 12h-6M4.93 19.07l4.24-4.24M14.83 9.17l4.24-4.24"/>
+                            </svg>
+                            <span class="text-lg font-medium mb-2">Vacuum Rated</span>
+                            <div class="toggle-btn w-12 h-6" id="vacuumRatedToggle" data-feature="vacuumRated"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8">
+                        <button id="buildPipeBtn" class="w-full bg-[#39ff14] hover:bg-[#2be010] text-[#0a192f] font-bold py-3 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-[0_0_15px_rgba(57,255,20,0.7)] text-lg">
+                            Build Pipe
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Navigation Buttons -->
+                <div class="mt-auto pt-4 flex justify-between">
+                    <button id="prevStepBtn" class="nav-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] text-white py-2 px-4 rounded-lg flex items-center" disabled>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        Previous
+                    </button>
+                    <button id="nextStepBtn" class="nav-btn bg-[#1e3a5f] hover:bg-[#2d4a6d] text-white py-2 px-4 rounded-lg flex items-center">
+                        Next
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Summary and Order List -->
+            <div class="col-span-12 md:col-span-4 flex flex-col gap-4">
+                <!-- Summary Section -->
+                <div class="bg-[#172a46] rounded-lg p-4 flex-1">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-xl font-semibold">Pipe Summary</h2>
+                        <div class="text-xs px-2 py-1 bg-[#1e3a5f] rounded-full">Live Preview</div>
+                    </div>
+                    <div id="summaryPanel" class="bg-[#0a192f] rounded-lg p-3 h-[200px] overflow-auto custom-scrollbar">
+                        <p class="text-sm text-gray-400">Configure a pipe to see the summary</p>
+                    </div>
+                </div>
+                
+                <!-- Order List Section -->
+                <div class="bg-[#172a46] rounded-lg p-4 flex-1">
+                    <div class="flex justify-between items-center mb-3">
+                        <h2 class="text-xl font-semibold">Order List</h2>
+                        <button id="exportPdfBtn" class="bg-[#1e3a5f] hover:bg-[#2d4a6d] text-white py-1 px-3 rounded flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Export PDF
+                        </button>
+                    </div>
+                    <div id="orderListContainer" class="bg-[#0a192f] rounded-lg p-2 h-[300px] overflow-auto overflow-x-auto custom-scrollbar">
+                        <p class="text-sm text-gray-400 p-2">No pipes added to order yet</p>
+                    </div>
+                    <button id="sendToProductBtn" class="mt-6 bg-green-500 hover:bg-green-600 text-white py-2 px-4 rounded-lg">
+                        Send Pipes to Product List
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Export Preview (Hidden) -->
+    <div id="pdfPreview" class="hidden">
+        <div id="pdfContent" class="p-8 bg-white text-black">
+            <div class="flex justify-between mb-6">
+                <div>
+                    <h1 class="text-2xl font-bold">PTFE Pipe Order</h1>
+                    <p id="pdfDate"></p>
+                </div>
+                <div>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="#0a192f">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
+                    </svg>
+                    <p class="font-bold">PTFE Solutions Inc.</p>
+                </div>
+            </div>
+            
+            <table class="w-full border-collapse">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border border-gray-400 p-2 text-left">#</th>
+                        <th class="border border-gray-400 p-2 text-left">Diameter</th>
+                        <th class="border border-gray-400 p-2 text-left">Length</th>
+                        <th class="border border-gray-400 p-2 text-left">PTFE Grade</th>
+                        <th class="border border-gray-400 p-2 text-left">Coating</th>
+                        <th class="border border-gray-400 p-2 text-left">Flange</th>
+                        <th class="border border-gray-400 p-2 text-left">Features</th>
+                        <th class="border border-gray-400 p-2 text-left">Price</th>
+                    </tr>
+                </thead>
+                <tbody id="pdfOrderItems">
+                    <!-- Order items will be inserted here -->
+                </tbody>
+            </table>
+            
+            <div class="mt-8">
+                <p class="font-bold">Notes:</p>
+                <p>All dimensions are in millimeters unless otherwise specified.</p>
+                <p>Please allow 2-3 weeks for manufacturing and delivery.</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+         let currentPipe = {
+                diameter: '',
+                length: '',
+                ptfeGrade: '',
+                coating: '',
+                flangeConfig: '',
+                ventHole: false,
+                grounding: false,
+                vacuumRated: false
+            };
+            
+        let orderList = [];
+        let nextOrderId = 1;
+        let editingOrderId = null;
+        let currentStep = 1;
+
+        document.addEventListener('DOMContentLoaded', function() {    
+            // DOM Elements
+            const configSteps = document.querySelectorAll('.config-step');
+            const stepIndicators = document.querySelectorAll('.step-indicator');
+            const stepConnectors = document.querySelectorAll('.step-connector');
+            const prevStepBtn = document.getElementById('prevStepBtn');
+            const nextStepBtn = document.getElementById('nextStepBtn');
+            const diameterBtns = document.querySelectorAll('[data-diameter]');
+            const ptfeGradeBtns = document.querySelectorAll('[data-grade]');
+            const coatingBtn = document.querySelector('[data-coating]');
+            const flangeBtns = document.querySelectorAll('[data-flange]');
+            const toggleBtns = document.querySelectorAll('.toggle-btn');
+            const pipeLengthInput = document.getElementById('pipeLength');
+            const ralCodeInput = document.getElementById('ralCode');
+            const ralColorPreview = document.getElementById('ralColorPreview');
+            const ralColorBtns = document.querySelectorAll('.ral-color-btn');
+            const ralColorPicker = document.getElementById('ralColorPicker'); // <--- เพิ่มตรงนี้
+
+            // 👇 เพิ่ม handler สำหรับ input สี
+            ralColorPicker.addEventListener('input', function () {
+                const hex = this.value;
+                ralCodeInput.value = ''; // clear RAL code when using custom color
+                currentPipe.coating = hex;
+
+                if (ralColorPreview) {
+                    ralColorPreview.style.backgroundColor = hex;
+                }
+
+
+                updateSummary();
+            });
+
+            const summaryPanel = document.getElementById('summaryPanel');
+            const buildPipeBtn = document.getElementById('buildPipeBtn');
+            const orderListContainer = document.getElementById('orderListContainer');
+            const exportPdfBtn = document.getElementById('exportPdfBtn');
+            
+            // Navigation Functions
+            function goToStep(step) {
+                // Hide all steps
+                configSteps.forEach(s => s.classList.remove('active'));
+                
+                // Show current step
+                document.getElementById(`step${step}`).classList.add('active');
+                
+                // Update indicators
+                stepIndicators.forEach((indicator, index) => {
+                    const stepNum = index + 1;
+                    indicator.classList.remove('active', 'completed');
+                    
+                    if (stepNum < step) {
+                        indicator.classList.add('completed');
+                    } else if (stepNum === step) {
+                        indicator.classList.add('active');
+                    }
+                });
+                
+                // Update connectors
+                stepConnectors.forEach((connector, index) => {
+                    const connectorNum = index + 1;
+                    connector.classList.remove('active');
+                    
+                    if (connectorNum < step) {
+                        connector.classList.add('active');
+                    }
+                });
+                
+                // Update buttons
+                prevStepBtn.disabled = step === 1;
+                nextStepBtn.textContent = step === 5 ? 'Finish' : 'Next';
+                
+                // Update current step
+                currentStep = step;
+                
+                // Update summary
+                updateSummary();
+            }
+            
+            // Event Listeners for Navigation
+            prevStepBtn.addEventListener('click', function() {
+                if (currentStep > 1) {
+                    goToStep(currentStep - 1);
+                }
+            });
+            
+            nextStepBtn.addEventListener('click', function() {
+                if (currentStep < 5) {
+                    // Validate current step
+                    if (validateCurrentStep()) {
+                        goToStep(currentStep + 1);
+                    }
+                } else {
+                    // On final step, trigger build pipe
+                    buildPipeBtn.click();
+                }
+            });
+            
+            // Validation for each step
+            function validateCurrentStep() {
+                switch(currentStep) {
+                    case 1:
+                        if (!currentPipe.diameter) {
+                            showValidationError("Please select a pipe diameter");
+                            return false;
+                        }
+                        return true;
+                    case 2:
+                        if (!currentPipe.length) {
+                            showValidationError("Please enter a pipe length");
+                            return false;
+                        }
+                        if (!currentPipe.ptfeGrade) {
+                            showValidationError("Please select a PTFE grade");
+                            return false;
+                        }
+                        return true;
+                    case 3:
+                        if (!currentPipe.coating) {
+                            showValidationError("Please select a coating option");
+                            return false;
+                        }
+                        return true;
+                    case 4:
+                        if (!currentPipe.flangeConfig) {
+                            showValidationError("Please select a flange configuration");
+                            return false;
+                        }
+                        return true;
+                    default:
+                        return true;
+                }
+            }
+            
+            function showValidationError(message) {
+                // Simple alert for now, could be replaced with a nicer UI notification
+                alert(message);
+            }
+            
+            // Selection Event Listeners
+            diameterBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    diameterBtns.forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                    currentPipe.diameter = this.dataset.diameter;
+                    updateSummary();
+                });
+            });
+            
+            ptfeGradeBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    ptfeGradeBtns.forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                    currentPipe.ptfeGrade = this.dataset.grade;
+                    updateSummary();
+                });
+            });
+            
+            coatingBtn.addEventListener('click', function() {
+                this.classList.add('selected');
+                ralCodeInput.value = '';
+                ralColorPreview.style.backgroundColor = '';
+                currentPipe.coating = 'Default';
+                updateSummary();
+            });
+            
+            ralCodeInput.addEventListener('input', function() {
+                coatingBtn.classList.remove('selected');
+                const ralCode = this.value.trim();
+                currentPipe.coating = ralCode ? `RAL ${ralCode}` : '';
+                updateSummary();
+            });
+            
+            ralColorBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const ralCode = this.dataset.ral;
+                    ralCodeInput.value = ralCode;
+                    ralColorPreview.style.backgroundColor = this.style.backgroundColor;
+                    coatingBtn.classList.remove('selected');
+                    currentPipe.coating = `RAL ${ralCode}`;
+                    updateSummary();
+                });
+                
+                // Add tooltip behavior
+                btn.addEventListener('mouseover', function(e) {
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'absolute bg-black text-white text-xs rounded py-1 px-2 z-10';
+                    tooltip.textContent = this.title;
+                    tooltip.style.top = (e.pageY - 30) + 'px';
+                    tooltip.style.left = (e.pageX + 10) + 'px';
+                    tooltip.id = 'color-tooltip';
+                    document.body.appendChild(tooltip);
+                });
+                
+                btn.addEventListener('mouseout', function() {
+                    const tooltip = document.getElementById('color-tooltip');
+                    if (tooltip) tooltip.remove();
+                });
+            });
+            
+            flangeBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    flangeBtns.forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                    currentPipe.flangeConfig = this.dataset.flange;
+                    updateSummary();
+                });
+            });
+            
+            toggleBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.classList.toggle('active');
+                    const feature = this.dataset.feature;
+                    currentPipe[feature] = this.classList.contains('active');
+                    updateSummary();
+                });
+            });
+            
+            pipeLengthInput.addEventListener('input', function() {
+                currentPipe.length = this.value;
+                updateSummary();
+            });
+            
+            buildPipeBtn.addEventListener('click', addPipeToOrder);
+            
+            exportPdfBtn.addEventListener('click', exportToPdf);
+            
+            // Functions
+            function updateSummary() {
+                if (!currentPipe.diameter) {
+                    summaryPanel.innerHTML = '<p class="text-sm text-gray-400">Configure a pipe to see the summary</p>';
+                    return;
+                }
+                
+                let features = [];
+                if (currentPipe.ventHole) features.push('Vent Hole');
+                if (currentPipe.grounding) features.push('Grounding');
+                if (currentPipe.vacuumRated) features.push('Vacuum Rated');
+                
+                let html = '<div class="space-y-3">';
+                
+                // Pipe visualization
+                html += `
+                    <div class="flex justify-center mb-4">
+                        <div class="relative">
+                            <div class="h-8 bg-gray-300 rounded-l-lg w-4 absolute left-0 top-1/2 transform -translate-y-1/2"></div>
+                            <div class="h-6 bg-blue-400 rounded-lg mx-4" style="width: ${Math.min(200, Math.max(50, currentPipe.length ? currentPipe.length / 10 : 100))}px"></div>
+                            <div class="h-8 bg-gray-300 rounded-r-lg w-4 absolute right-0 top-1/2 transform -translate-y-1/2"></div>
+                        </div>
+                    </div>
+                `;
+                
+                // Specifications
+                html += `
+                    <p><span class="text-gray-400">Diameter:</span> <span class="neon-text">${currentPipe.diameter}"</span></p>
+                    <p><span class="text-gray-400">Length:</span> <span class="neon-text">${currentPipe.length || '—'} mm</span></p>
+                    <p><span class="text-gray-400">PTFE Grade:</span> <span class="neon-text">${currentPipe.ptfeGrade || '—'}</span></p>
+                    <p><span class="text-gray-400">Coating:</span> <span class="neon-text">${currentPipe.coating || '—'}</span></p>
+                    <p><span class="text-gray-400">Flange Config:</span> <span class="neon-text">${currentPipe.flangeConfig || '—'}</span></p>
+                    <p><span class="text-gray-400">Features:</span> <span class="neon-text">${features.length ? features.join(', ') : 'None'}</span></p>
+                </div>`;
+                
+                summaryPanel.innerHTML = html;
+            }
+            
+            function isValidPipeConfiguration() {
+                return currentPipe.diameter && 
+                       currentPipe.length && 
+                       currentPipe.ptfeGrade && 
+                       currentPipe.coating && 
+                       currentPipe.flangeConfig;
+            }
+            
+            function addPipeToOrder() {
+                if (!isValidPipeConfiguration()) {
+                    alert('Please complete all required pipe configuration fields');
+                    return;
+                }
+                
+                const pipeOrder = {
+                    id: editingOrderId !== null ? editingOrderId : nextOrderId++,
+                    ...JSON.parse(JSON.stringify(currentPipe))
+                };
+                
+                // 🔹 คำนวณราคาแล้วใส่ใน pipeOrder
+                pipeOrder.price = calculatePipePrice(pipeOrder);
+                
+                if (editingOrderId !== null) {
+                    // Update existing order
+                    const index = orderList.findIndex(item => item.id === editingOrderId);
+                    if (index !== -1) {
+                        orderList[index] = pipeOrder;
+                    }
+                    editingOrderId = null;
+                } else {
+                    // Add new order
+                    orderList.push(pipeOrder);
+                }
+                
+                updateOrderList();
+                resetPipeForm();
+                
+                // Visual feedback
+                buildPipeBtn.classList.add('scale-95', 'opacity-80');
+                setTimeout(() => {
+                    buildPipeBtn.classList.remove('scale-95', 'opacity-80');
+                }, 200);
+                
+                // Show success message
+                const successMsg = document.createElement('div');
+                successMsg.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center';
+                successMsg.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    Pipe added to order successfully!
+                `;
+                document.body.appendChild(successMsg);
+                
+                setTimeout(() => {
+                    successMsg.style.opacity = '0';
+                    successMsg.style.transition = 'opacity 0.5s';
+                    setTimeout(() => successMsg.remove(), 500);
+                }, 3000);
+                
+                // Reset to step 1
+                goToStep(1);
+            }
+            
+            function updateOrderList() {
+                if (orderList.length === 0) {
+                    orderListContainer.innerHTML = '<p class="text-sm text-gray-400 p-2">No pipes added to order yet</p>';
+                    return;
+                }
+                
+                orderListContainer.innerHTML = '';
+                
+                orderList.forEach(pipe => {
+                    let features = [];
+                    if (pipe.ventHole) features.push('Vent Hole');
+                    if (pipe.grounding) features.push('Grounding');
+                    if (pipe.vacuumRated) features.push('Vacuum Rated');
+                    
+                    const orderItem = document.createElement('div');
+                    orderItem.className = 'bg-[#172a46] rounded-lg p-3 mb-2 relative';
+                    orderItem.innerHTML = `
+                        <div class="absolute top-2 right-2 flex space-x-2">
+                            <button class="edit-btn bg-blue-500 hover:bg-blue-600 text-white p-1 rounded" data-id="${pipe.id}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                            </button>
+                            <button class="delete-btn bg-red-500 hover:bg-red-600 text-white p-1 rounded" data-id="${pipe.id}">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-12 gap-2">
+                            <div class="col-span-1">
+                                <span class="text-sm font-bold neon-text">#${pipe.id}</span>
+                            </div>
+                            <div class="col-span-11">
+                                <div class="order-horizontal">
+                                    <div>
+                                        <p class="text-xs text-gray-400">Diameter</p>
+                                        <p class="text-sm">${pipe.diameter}"</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-400">Length</p>
+                                        <p class="text-sm">${pipe.length} mm</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-400">PTFE Grade</p>
+                                        <p class="text-sm">${pipe.ptfeGrade}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-400">Coating</p>
+                                        <p class="text-sm">${pipe.coating}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-400">Flange</p>
+                                        <p class="text-sm">${pipe.flangeConfig}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-400">Features</p>
+                                        <p class="text-sm">${features.length ? features.join(', ') : 'None'}</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-gray-400">Price</p>
+                                        <p class="text-sm">${pipe.price.toLocaleString()} THB</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    orderListContainer.appendChild(orderItem);
+                });
+                
+                // Add event listeners to edit and delete buttons
+                document.querySelectorAll('.edit-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = parseInt(this.dataset.id);
+                        editPipe(id);
+                    });
+                });
+                
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = parseInt(this.dataset.id);
+                        deletePipe(id);
+                    });
+                });
+            }
+            
+            function editPipe(id) {
+                const pipe = orderList.find(item => item.id === id);
+                if (!pipe) return;
+                
+                // Set form values
+                editingOrderId = id;
+                currentPipe = JSON.parse(JSON.stringify(pipe));
+                
+                // Update UI to reflect current values
+                diameterBtns.forEach(btn => {
+                    btn.classList.toggle('selected', btn.dataset.diameter === pipe.diameter);
+                });
+                
+                ptfeGradeBtns.forEach(btn => {
+                    btn.classList.toggle('selected', btn.dataset.grade === pipe.ptfeGrade);
+                });
+                
+                if (pipe.coating === 'Default') {
+                    coatingBtn.classList.add('selected');
+                    ralCodeInput.value = '';
+                    ralColorPreview.style.backgroundColor = '';
+                } else {
+                    coatingBtn.classList.remove('selected');
+                    const ralCode = pipe.coating.replace('RAL ', '');
+                    ralCodeInput.value = ralCode;
+                    // Try to find matching color button
+                    ralColorBtns.forEach(btn => {
+                        if (btn.dataset.ral === ralCode) {
+                            ralColorPreview.style.backgroundColor = btn.style.backgroundColor;
+                        }
+                    });
+                }
+                
+                flangeBtns.forEach(btn => {
+                    btn.classList.toggle('selected', btn.dataset.flange === pipe.flangeConfig);
+                });
+                
+                document.getElementById('ventHoleToggle').classList.toggle('active', pipe.ventHole);
+                document.getElementById('groundingToggle').classList.toggle('active', pipe.grounding);
+                document.getElementById('vacuumRatedToggle').classList.toggle('active', pipe.vacuumRated);
+                
+                pipeLengthInput.value = pipe.length;
+                
+                // Update summary
+                updateSummary();
+                
+                // Update button text
+                buildPipeBtn.textContent = 'Update Pipe';
+                
+                // Go to step 1
+                goToStep(1);
+            }
+            
+            function deletePipe(id) {
+                if (confirm('Are you sure you want to remove this pipe from the order?')) {
+                    orderList = orderList.filter(item => item.id !== id);
+                    updateOrderList();
+                    
+                    // If we were editing this pipe, reset the form
+                    if (editingOrderId === id) {
+                        resetPipeForm();
+                    }
+                }
+            }
+            
+            function resetPipeForm() {
+                // Reset current pipe object
+                currentPipe = {
+                    diameter: '',
+                    length: '',
+                    ptfeGrade: '',
+                    coating: '',
+                    flangeConfig: '',
+                    ventHole: false,
+                    grounding: false,
+                    vacuumRated: false
+                };
+                
+                // Reset UI
+                diameterBtns.forEach(btn => btn.classList.remove('selected'));
+                ptfeGradeBtns.forEach(btn => btn.classList.remove('selected'));
+                coatingBtn.classList.remove('selected');
+                flangeBtns.forEach(btn => btn.classList.remove('selected'));
+                
+                document.getElementById('ventHoleToggle').classList.remove('active');
+                document.getElementById('groundingToggle').classList.remove('active');
+                document.getElementById('vacuumRatedToggle').classList.remove('active');
+                
+                pipeLengthInput.value = '';
+                ralCodeInput.value = '';
+                if (ralColorPreview) {
+                    ralColorPreview.style.backgroundColor = '';
+                }
+
+                
+                // Reset summary
+                summaryPanel.innerHTML = '<p class="text-sm text-gray-400">Configure a pipe to see the summary</p>';
+                
+                // Reset button text
+                buildPipeBtn.textContent = 'Build Pipe';
+                
+                // Reset editing state
+                editingOrderId = null;
+            }
+            
+            function exportToPdf() {
+                if (orderList.length === 0) {
+                    alert('Please add at least one pipe to the order before exporting');
+                    return;
+                }
+                
+                // Set PDF content
+                document.getElementById('pdfDate').textContent = new Date().toLocaleDateString();
+                
+                const pdfOrderItems = document.getElementById('pdfOrderItems');
+                pdfOrderItems.innerHTML = '';
+                
+                orderList.forEach(pipe => {
+                    let features = [];
+                    if (pipe.ventHole) features.push('Vent Hole');
+                    if (pipe.grounding) features.push('Grounding');
+                    if (pipe.vacuumRated) features.push('Vacuum Rated');
+                    
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td class="border border-gray-400 p-2">${pipe.id}</td>
+                        <td class="border border-gray-400 p-2">${pipe.diameter}"</td>
+                        <td class="border border-gray-400 p-2">${pipe.length} mm</td>
+                        <td class="border border-gray-400 p-2">${pipe.ptfeGrade}</td>
+                        <td class="border border-gray-400 p-2">${pipe.coating}</td>
+                        <td class="border border-gray-400 p-2">${pipe.flangeConfig}</td>
+                        <td class="border border-gray-400 p-2">${features.length ? features.join(', ') : 'None'}</td>
+                        <td class="border border-gray-400 p-2">${pipe.price.toLocaleString()} THB</td>
+                    `;
+                    pdfOrderItems.appendChild(tr);
+                });
+                
+                // Generate PDF
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('landscape', 'pt', 'a4');
+                
+                html2canvas(document.getElementById('pdfContent')).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const imgWidth = doc.internal.pageSize.getWidth();
+                    const imgHeight = canvas.height * imgWidth / canvas.width;
+                    
+                    doc.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+                    doc.save(`PTFE_Pipe_Order_${new Date().toISOString().split('T')[0]}.pdf`);
+                });
+            }
+            
+            // Initialize
+            goToStep(1);
+        });
+        document.getElementById('sendToProductBtn').addEventListener('click', async function () {
+            if (!window.opener) {
+                alert("This page was not opened from the product page.");
+                return;
+            }
+
+            try {
+                // ⬇️ ส่ง pipe แต่ละรายการไปบันทึกที่ FastAPI
+                await Promise.all(orderList.map(pipe => {
+                    return fetch("http://localhost:3000/add_pipe", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            quotation_no: `AUTO-${Date.now()}`,
+                            ...pipe
+                        })
+                    });
+                }));
+
+                // ⬇️ ส่งกลับไปยังหน้าหลัก
+                window.opener.postMessage({
+                    type: 'ADD_PIPES_FROM_BUILDER',
+                    payload: orderList,
+                    autoNavigateToCart: true
+                }, '*');
+
+                window.close();
+            } catch (err) {
+                console.error("❌ Error saving pipe to Google Sheet:", err);
+                alert("Failed to save pipe data. Please try again.");
+            }
+        });
+
+        function calculatePipePrice(pipe) {
+            const length = parseFloat(pipe.length) || 0;
+            let m = 0;
+            let b = 0;
+
+            switch (pipe.diameter) {
+                case '8':
+                    m = 47.1; b = 14900;
+                    break;
+                case '6':
+                    m = 19.2; b = 7042;
+                    break;
+                case '4':
+                    m = 11.7; b = 2070;
+                    break;
+                case '3':
+                    m = 8.3; b = 1321;
+                    break;
+                case '2':
+                    m = 7.1; b = 1194;
+                    break;
+                case '1-1/2':
+                    m = 4.4; b = 1879;
+                    break;
+                case '1':
+                    m = 2.1; b = 1309;
+                    break;
+                case '3/4':
+                    m = 2.0; b = 1296;
+                    break;
+                default:
+                    return 0; // ไม่รองรับขนาดนี้
+            }
+
+            const price = (m * length) + b;
+            return Math.round(price); // ปัดราคาเป็นจำนวนเต็ม
+        }
+
+    </script>
+</body>
+</html>
+
+
