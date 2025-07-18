@@ -7,6 +7,8 @@ const multer = require('multer');
 const { google } = require('googleapis');
 
 const app = express();
+const helmet = require('helmet');
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use('/images', express.static(path.join(__dirname, 'public/images')));
@@ -15,8 +17,10 @@ app.use('/uploaded_images', express.static(path.join(__dirname, 'public/uploaded
 const upload = multer({ dest: 'public/uploaded_images/' });
 
 // Google Sheets setup
+const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON || '{}');
+
 const auth = new google.auth.GoogleAuth({
-  keyFile: 'client_secret.json',
+  credentials,
   scopes: [
     'https://www.googleapis.com/auth/spreadsheets',
     'https://www.googleapis.com/auth/drive'
@@ -303,8 +307,12 @@ app.get('/basic_products', async (req, res) => {
   }
 });
 
+const PORT = process.env.PORT || 3000;
+
 initSheets().then(() => {
-  app.listen(3000, () => console.log('🚀 Server ready on http://localhost:3000'));
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
 });
 
 app.post('/save_basic_product', async (req, res) => {
