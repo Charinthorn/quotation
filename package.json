@@ -18,7 +18,9 @@
     "googleapis": "^150.0.1",
     "helmet": "^8.1.0",
     "multer": "^2.0.1",
-    "xlsx": "^0.18.5"
+    "swagger-ui-express": "^5.0.1",
+    "xlsx": "^0.18.5",
+    "yamljs": "^0.3.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10",

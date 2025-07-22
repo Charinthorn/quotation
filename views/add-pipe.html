@@ -1065,7 +1065,7 @@
             try {
                 // ⬇️ ส่ง pipe แต่ละรายการไปบันทึกที่ FastAPI
                 await Promise.all(orderList.map(pipe => {
-                    return fetch("http://localhost:3000/add_pipe", {
+                    return fetch("/add_pipe", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({

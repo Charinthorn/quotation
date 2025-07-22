@@ -896,7 +896,7 @@
 
                 try {
                     // 🔹 โหลดหมวดหมู่จาก Google Sheets (ผ่าน FastAPI)
-                    const resCat = await fetch("http://localhost:3000/categories");
+                    const resCat = await fetch("/categories");
                     categories = await resCat.json();
 
                     // 🔹 โหลดสินค้า (เริ่มจากหน้า 1)
@@ -978,7 +978,7 @@
                 }
 
                 try {
-                    const res = await fetch(`http://localhost:3000/revisions/${quotationNo}`);
+                    const res = await fetch(`/revisions/${quotationNo}`);
                     const revisions = await res.json();
 
                     revSelect.innerHTML = '<option value="">-- Revision --</option>';
@@ -1103,9 +1103,9 @@
         async function loadAdminData() {
             try {
                 const [resCat, resProd, resCounts] = await Promise.all([
-                    fetch("http://localhost:3000/categories"),
-                    fetch("http://localhost:3000/basic_products?page=1&size=50"),
-                    fetch("http://localhost:3000/product_counts_by_category")
+                    fetch("/categories"),
+                    fetch("/basic_products?page=1&size=50"),
+                    fetch("/product_counts_by_category")
                 ]);
 
                 categories = await resCat.json();
@@ -1449,7 +1449,7 @@
                 formData.append('file', imageInput.files[0]);
 
                 try {
-                    const res = await fetch('http://localhost:3000/upload_image', {
+                    const res = await fetch('/upload_image', {
                         method: 'POST',
                         body: formData
                     });
@@ -1479,8 +1479,8 @@
             }
 
             const url = editingProductId
-                ? `http://localhost:3000/update_product/${editingProductId}`
-                : "http://localhost:3000/save_basic_product";
+                ? `/update_product/${editingProductId}`
+                : "/save_basic_product";
 
             const method = editingProductId ? "PUT" : "POST";
 
@@ -1506,7 +1506,7 @@
                 await loadProductPage(currentPage);
 
                 // ✅ โหลด productCounts ใหม่
-                const countsRes = await fetch("http://localhost:3000/product_counts_by_category");
+                const countsRes = await fetch("/product_counts_by_category");
                 productCounts = await countsRes.json();
 
                 renderCategories();
@@ -1566,8 +1566,8 @@
             };
 
             const url = editingCategoryId
-                ? `http://localhost:3000/update_category/${editingCategoryId}`
-                : "http://localhost:3000/add_category";
+                ? `/update_category/${editingCategoryId}`
+                : "/add_category";
 
             const method = editingCategoryId ? "PUT" : "POST";
 
@@ -1588,8 +1588,8 @@
 
                 // โหลด categories + productCounts ใหม่
                 return Promise.all([
-                    fetch("http://localhost:3000/categories").then(r => r.json()),
-                    fetch("http://localhost:3000/product_counts_by_category").then(r => r.json())
+                    fetch("/categories").then(r => r.json()),
+                    fetch("/product_counts_by_category").then(r => r.json())
                 ]);
             })
             .then(([cats, counts]) => {
@@ -1634,7 +1634,7 @@
             try {
                 if (deleteItemType === 'product') {
                     // 🔥 ลบสินค้า
-                    const res = await fetch(`http://localhost:3000/delete_product/${deleteItemId}`, {
+                    const res = await fetch(`/delete_product/${deleteItemId}`, {
                         method: "DELETE"
                     });
                     if (!res.ok) throw new Error("Failed to delete product");
@@ -1650,7 +1650,7 @@
                     await loadProductPage(currentPage);
 
                     // ✅ โหลด productCounts ใหม่
-                    const countsRes = await fetch("http://localhost:3000/product_counts_by_category");
+                    const countsRes = await fetch("/product_counts_by_category");
                     productCounts = await countsRes.json();
 
                     renderCategories();
@@ -1658,7 +1658,7 @@
                 
                 else if (deleteItemType === 'category') {
                     // 🔥 ลบหมวดหมู่
-                    const res = await fetch(`http://localhost:3000/delete_category/${deleteItemId}`, {
+                    const res = await fetch(`/delete_category/${deleteItemId}`, {
                         method: "DELETE"
                     });
                     if (!res.ok) throw new Error("Failed to delete category");
@@ -1667,9 +1667,9 @@
 
                     // ✅ โหลดข้อมูล categories + products + productCounts ใหม่
                     const [catRes, prodRes, countsRes] = await Promise.all([
-                        fetch("http://localhost:3000/categories"),
-                        fetch(`http://localhost:3000/basic_products?page=1&size=${pageSize}`),
-                        fetch("http://localhost:3000/product_counts_by_category")
+                        fetch("/categories"),
+                        fetch(`/basic_products?page=1&size=${pageSize}`),
+                        fetch("/product_counts_by_category")
                     ]);
 
                     categories = await catRes.json();
@@ -1718,7 +1718,7 @@
         async function loadProductPage(page = 1) {
             showLoading();
             try {
-                let url = `http://localhost:3000/basic_products?page=${page}&size=${pageSize}`;
+                let url = `/basic_products?page=${page}&size=${pageSize}`;
                 const selectedCategory = categoryFilter.value;
                 if (selectedCategory) {
                     url += `&category=${encodeURIComponent(selectedCategory)}`;
@@ -1783,7 +1783,7 @@
                 return alert('กรุณาเลือกหมายเลขใบเสนอราคา');
             }
 
-            let url = `http://localhost:3000/quotation/${quotationNo}`;
+            let url = `/quotation/${quotationNo}`;
             if (revision && revision !== 'latest') {
                 url += `?rev=${revision}`;
             }
@@ -1908,7 +1908,7 @@
                     revSelect.innerHTML = '<option value="latest">Latest</option>';
 
                     try {
-                        const resRev = await fetch(`http://localhost:3000/revisions/${quotationNo}`);
+                        const resRev = await fetch(`/revisions/${quotationNo}`);
                         if (!resRev.ok) throw new Error("ไม่สามารถโหลด revision");
 
                         const revisions = await resRev.json(); // เช่น [1, 2, 3]
@@ -1948,7 +1948,7 @@
 
                 try {
                     const statusFilter = document.getElementById('quotation-status-filter')?.value || '';
-                    let url = 'http://localhost:3000/quotation_list';
+                    let url = '/quotation_list';
 
                     if (statusFilter) {
                         url += `?status=${encodeURIComponent(statusFilter)}`;
@@ -2192,7 +2192,7 @@
                 rev = '';  // ใช้ rev ว่างเพื่อระบุว่าเป็นฉบับแรก (Rev.0)
             }
 
-            fetch('http://localhost:3000/update_quotation_status', {
+            fetch('/update_quotation_status', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -2386,7 +2386,7 @@
                     items: sanitizedItems
                 };
 
-                const res = await fetch("http://localhost:3000/add_quotation", {
+                const res = await fetch("/add_quotation", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload)
@@ -2484,7 +2484,7 @@
 
             try {
                 // 🔍 ดึงหมายเลขล่าสุดที่ใช้ prefix นี้
-                const res = await fetch(`http://localhost:3000/latest_quotation_no?prefix=${prefix}`);
+                const res = await fetch(`/latest_quotation_no?prefix=${prefix}`);
                 if (!res.ok) throw new Error("Failed to fetch latest quotation number");
                 const data = await res.json();
 
@@ -2616,7 +2616,7 @@
             formData.append('rev', revToSend);
 
             try {
-                const res = await fetch('http://localhost:3000/upload_drawing', {
+                const res = await fetch('/upload_drawing', {
                     method: 'POST',
                     body: formData
                 });
@@ -2649,7 +2649,7 @@
             formData.append('file', file);
 
             try {
-                const res = await fetch('http://localhost:3000/upload_excel', {
+                const res = await fetch('/upload_excel', {
                 method: 'POST',
                 body: formData
                 });

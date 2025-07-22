@@ -882,7 +882,7 @@
         async function loadPage(category, page) {
             const isLinedPipe = category === 'Lined Pipe';
             const size = isLinedPipe ? 100000 : pageSize;  
-            const res = await fetch(`http://localhost:3000/basic_products?page=1&size=${size}&category=${encodeURIComponent(category)}`);
+            const res = await fetch(`/basic_products?page=1&size=${size}&category=${encodeURIComponent(category)}`);
             if (!res.ok) {
                 console.error("❌ Failed to load page");
                 return;
@@ -1054,12 +1054,12 @@
         async function init() {
             try {
                 // 📦 โหลดหมวดหมู่จาก FastAPI
-                const resCat = await fetch("http://localhost:3000/categories");
+                const resCat = await fetch("/categories");
                 if (!resCat.ok) throw new Error("Cannot fetch categories");
                 categories = await resCat.json();
 
                 // 📦 โหลดจำนวนสินค้าต่อหมวด
-                const resCount = await fetch("http://localhost:3000/product_counts_by_category");
+                const resCount = await fetch("/product_counts_by_category");
                 if (!resCount.ok) throw new Error("Cannot fetch product counts");
                 productCounts = await resCount.json();
 
@@ -1110,7 +1110,7 @@
                 if (!quotationNo) return;
 
                 try {
-                    const res = await fetch(`http://localhost:3000/revisions/${quotationNo}`);
+                    const res = await fetch(`/revisions/${quotationNo}`);
                     if (!res.ok) throw new Error("ไม่สามารถโหลด revision");
 
                     const revisions = await res.json(); // เช่น [0,1,2]
@@ -2184,7 +2184,7 @@
                     items: sanitizedItems
                 };
 
-                const res = await fetch("http://localhost:3000/add_quotation", {
+                const res = await fetch("/add_quotation", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload)
@@ -2392,7 +2392,7 @@
             formData.append('rev', revToSend);
 
             try {
-                const res = await fetch('http://localhost:3000/upload_drawing', {
+                const res = await fetch('/upload_drawing', {
                     method: 'POST',
                     body: formData
                 });
@@ -2533,7 +2533,7 @@
                 return alert('กรุณาเลือกหมายเลขใบเสนอราคา');
             }
 
-            let url = `http://localhost:3000/quotation/${quotationNo}`;
+            let url = `/quotation/${quotationNo}`;
             url += `?rev=${revision || ''}`;  // force rev parameter, แม้จะเป็นช่องว่าง
 
             try {
@@ -2699,7 +2699,7 @@
 
                 try {
                     const statusFilter = document.getElementById('quotation-status-filter')?.value || '';
-                    let url = 'http://localhost:3000/quotation_list';
+                    let url = '/quotation_list';
 
                     if (statusFilter) {
                         url += `?status=${encodeURIComponent(statusFilter)}`;
@@ -2933,7 +2933,7 @@
 
             try {
                 // 🔍 ดึงหมายเลขล่าสุดที่ใช้ prefix นี้
-                const res = await fetch(`http://localhost:3000/latest_quotation_no?prefix=${prefix}`);
+                const res = await fetch(`/latest_quotation_no?prefix=${prefix}`);
                 if (!res.ok) throw new Error("Failed to fetch latest quotation number");
 
                 const data = await res.json();

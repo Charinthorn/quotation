@@ -1,0 +1,149 @@
+openapi: 3.0.0
+info:
+  title: Quotation API
+  description: API สำหรับดึงหมวดหมู่สินค้าและข้อมูลอื่น ๆ จากระบบ
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+paths:
+  /categories:
+    get:
+      summary: ดึงข้อมูลหมวดหมู่ทั้งหมด
+      description: ดึงข้อมูลหมวดหมู่สินค้าทั้งหมดจาก Google Sheets
+      responses:
+        '200':
+          description: สำเร็จ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    category_id:
+                      type: string
+                      example: cat001
+                    name:
+                      type: string
+                      example: Lined Pipe
+                    icon:
+                      type: string
+                      example: pipe.png
+        '500':
+          description: เกิดข้อผิดพลาดภายในเซิร์ฟเวอร์
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Failed to fetch categories
+
+  /refresh_data:
+    post:
+      summary: โหลดข้อมูลสินค้าและหมวดหมู่ใหม่จาก Google Sheets
+      description: ใช้สำหรับรีเฟรชข้อมูลทั้งหมดในระบบ เช่น สินค้าและหมวดหมู่
+      responses:
+        '200':
+          description: โหลดข้อมูลสำเร็จ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: refreshed
+                  product_count:
+                    type: integer
+                    example: 134
+                  category_count:
+                    type: integer
+                    example: 8
+        '500':
+          description: เกิดข้อผิดพลาดในการโหลดข้อมูล
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Failed to refresh data
+
+  /upload_image:
+    post:
+      summary: อัปโหลดรูปภาพสินค้า
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: อัปโหลดสำเร็จ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    example: /uploaded_images/abc123.jpg
+        '400':
+          description: ไม่พบไฟล์ที่อัปโหลด
+
+  /add_category:
+    post:
+      summary: เพิ่มหมวดหมู่สินค้าใหม่ลง Google Sheets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - category_id
+                - name
+                - icon
+              properties:
+                category_id:
+                  type: string
+                  example: cat003
+                name:
+                  type: string
+                  example: Expansion Joint
+                icon:
+                  type: string
+                  example: expansion.png
+      responses:
+        '200':
+          description: เพิ่มหมวดหมู่สำเร็จ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+        '500':
+          description: เกิดข้อผิดพลาดในการเพิ่มหมวดหมู่
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Failed to append to sheet
+
